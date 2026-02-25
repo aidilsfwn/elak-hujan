@@ -1,67 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
-import { MapPin } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useEffect, useRef, useState } from "react";
+import { MapPin } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { MALAYSIAN_STATES } from '@/constants/malaysia';
-import { copy } from '@/constants/copy';
-import { searchLocations, type NominatimResult } from '@/services/nominatim';
-import type { Location } from '@/types/config';
-import { cn } from '@/lib/utils';
-
-export function normaliseName(displayName: string): string {
-  return displayName.split(',').slice(0, 2).join(',').trim();
-}
-
-// Maps Nominatim's address.state variants → our display state names.
-// Nominatim returns English names like "Federal Territory of Kuala Lumpur",
-// "Penang", "Malacca" etc. that don't match our list directly.
-const NOMINATIM_STATE_MAP: Record<string, string> = {
-  'johor':                                  'Johor',
-  'kedah':                                  'Kedah',
-  'kelantan':                               'Kelantan',
-  'melaka':                                 'Melaka',
-  'malacca':                                'Melaka',
-  'negeri sembilan':                        'Negeri Sembilan',
-  'pahang':                                 'Pahang',
-  'perak':                                  'Perak',
-  'perlis':                                 'Perlis',
-  'pulau pinang':                           'Pulau Pinang',
-  'penang':                                 'Pulau Pinang',
-  'sabah':                                  'Sabah',
-  'sarawak':                                'Sarawak',
-  'selangor':                               'Selangor',
-  'terengganu':                             'Terengganu',
-  'kuala lumpur':                           'W.P. Kuala Lumpur',
-  'federal territory of kuala lumpur':      'W.P. Kuala Lumpur',
-  'wilayah persekutuan kuala lumpur':       'W.P. Kuala Lumpur',
-  'labuan':                                 'W.P. Labuan',
-  'federal territory of labuan':            'W.P. Labuan',
-  'wilayah persekutuan labuan':             'W.P. Labuan',
-  'putrajaya':                              'W.P. Putrajaya',
-  'federal territory of putrajaya':         'W.P. Putrajaya',
-  'wilayah persekutuan putrajaya':          'W.P. Putrajaya',
-};
-
-export function guessState(result: NominatimResult): string {
-  const raw = (result.address?.state ?? '').toLowerCase().trim();
-  if (!raw) return '';
-
-  // Exact map lookup first
-  if (NOMINATIM_STATE_MAP[raw]) return NOMINATIM_STATE_MAP[raw];
-
-  // Partial match within the map keys (handles truncated or variant strings)
-  const key = Object.keys(NOMINATIM_STATE_MAP).find(
-    (k) => raw.includes(k) || k.includes(raw),
-  );
-  return key ? NOMINATIM_STATE_MAP[key] : '';
-}
+} from "@/components/ui/select";
+import { MALAYSIAN_STATES } from "@/constants/malaysia";
+import { copy } from "@/constants/copy";
+import { searchLocations, type NominatimResult } from "@/services/nominatim";
+import type { Location } from "@/types/config";
+import { cn } from "@/lib/utils";
+import { normaliseName, guessState } from "@/lib/location-utils";
 
 interface LocationFieldProps {
   label: string;
@@ -70,8 +23,13 @@ interface LocationFieldProps {
   onChange: (loc: Location) => void;
 }
 
-export function LocationField({ label, placeholder, value, onChange }: LocationFieldProps) {
-  const [query, setQuery] = useState(value?.name ?? '');
+export function LocationField({
+  label,
+  placeholder,
+  value,
+  onChange,
+}: LocationFieldProps) {
+  const [query, setQuery] = useState(value?.name ?? "");
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -83,12 +41,15 @@ export function LocationField({ label, placeholder, value, onChange }: LocationF
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setShowDropdown(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -140,7 +101,11 @@ export function LocationField({ label, placeholder, value, onChange }: LocationF
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 rounded-md px-2.5 py-1.5">
           <MapPin className="size-3 shrink-0 text-primary" />
           <span className="truncate">{value!.name}</span>
-          {value!.state && <span className="shrink-0 text-muted-foreground/60">· {value!.state}</span>}
+          {value!.state && (
+            <span className="shrink-0 text-muted-foreground/60">
+              · {value!.state}
+            </span>
+          )}
         </div>
       )}
 
@@ -157,7 +122,7 @@ export function LocationField({ label, placeholder, value, onChange }: LocationF
             }
           }}
           onFocus={() => results.length > 0 && setShowDropdown(true)}
-          placeholder={hasValidLocation ? 'Cari lokasi baru...' : placeholder}
+          placeholder={hasValidLocation ? "Cari lokasi baru..." : placeholder}
           autoComplete="off"
         />
         {showDropdown && (
@@ -177,13 +142,15 @@ export function LocationField({ label, placeholder, value, onChange }: LocationF
                 key={r.place_id}
                 type="button"
                 className={cn(
-                  'w-full px-3 py-2.5 text-left text-sm hover:bg-accent transition-colors',
-                  'border-b border-border last:border-b-0',
+                  "w-full px-3 py-2.5 text-left text-sm hover:bg-accent transition-colors",
+                  "border-b border-border last:border-b-0",
                 )}
                 onMouseDown={(e) => e.preventDefault()} // prevent input blur before click
                 onClick={() => handleSelect(r)}
               >
-                <span className="font-medium">{normaliseName(r.display_name)}</span>
+                <span className="font-medium">
+                  {normaliseName(r.display_name)}
+                </span>
                 <span className="block text-xs text-muted-foreground truncate">
                   {r.display_name}
                 </span>
@@ -193,24 +160,31 @@ export function LocationField({ label, placeholder, value, onChange }: LocationF
         )}
       </div>
 
-      {/* State selector — only shown once a location is picked */}
-      {hasValidLocation && (
-        <Select
-          value={value?.state ?? ''}
-          onValueChange={(state) => {
-            if (value) onChange({ ...value, state });
-          }}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder={copy.onboarding.location.statePlaceholder} />
-          </SelectTrigger>
-          <SelectContent>
-            {MALAYSIAN_STATES.map((s) => (
-              <SelectItem key={s} value={s}>{s}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
+      {/* State selector — always visible */}
+      <Select
+        value={value?.state ?? ""}
+        onValueChange={(state) => {
+          if (value) {
+            onChange({ ...value, state });
+          } else {
+            // If no location, create a partial location with just state
+            onChange({ name: "", lat: 0, lon: 0, state });
+          }
+        }}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue
+            placeholder={copy.onboarding.location.statePlaceholder}
+          />
+        </SelectTrigger>
+        <SelectContent>
+          {MALAYSIAN_STATES.map((s) => (
+            <SelectItem key={s} value={s}>
+              {s}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

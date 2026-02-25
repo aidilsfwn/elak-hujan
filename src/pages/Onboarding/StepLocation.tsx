@@ -1,6 +1,6 @@
-import { LocationField } from '@/components/LocationField';
-import { copy } from '@/constants/copy';
-import type { UserConfig } from '@/types/config';
+import { LocationField } from "@/components/LocationField";
+import { copy } from "@/constants/copy";
+import type { UserConfig } from "@/types/config";
 
 interface StepLocationProps {
   draft: Partial<UserConfig>;
