@@ -21,7 +21,7 @@ function TimeRange({ label, start, end, onStartChange, onEndChange }: TimeRangeP
     <div className="space-y-3">
       <Label className="text-base font-medium">{label}</Label>
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <Label className="text-xs text-muted-foreground">
             {copy.onboarding.commute.startLabel}
           </Label>
@@ -29,10 +29,10 @@ function TimeRange({ label, start, end, onStartChange, onEndChange }: TimeRangeP
             type="time"
             value={start}
             onChange={(e) => onStartChange(e.target.value)}
-            className="text-base"
+            className="text-base appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
           />
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <Label className="text-xs text-muted-foreground">
             {copy.onboarding.commute.endLabel}
           </Label>
@@ -40,7 +40,7 @@ function TimeRange({ label, start, end, onStartChange, onEndChange }: TimeRangeP
             type="time"
             value={end}
             onChange={(e) => onEndChange(e.target.value)}
-            className="text-base"
+            className="text-base appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
           />
         </div>
       </div>

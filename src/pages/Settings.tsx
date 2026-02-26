@@ -103,22 +103,22 @@ export function Settings() {
           <div key={key} className="space-y-2">
             <Label className="text-xs text-muted-foreground">{label}</Label>
             <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <Label className="text-[11px] text-muted-foreground/70">{copy.onboarding.commute.startLabel}</Label>
                 <Input
                   type="time"
                   value={draft[key].start}
                   onChange={(e) => updateDraft({ [key]: { ...draft[key], start: e.target.value } })}
-                  className="text-base"
+                  className="text-base appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
                 />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <Label className="text-[11px] text-muted-foreground/70">{copy.onboarding.commute.endLabel}</Label>
                 <Input
                   type="time"
                   value={draft[key].end}
                   onChange={(e) => updateDraft({ [key]: { ...draft[key], end: e.target.value } })}
-                  className="text-base"
+                  className="text-base appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
                 />
               </div>
             </div>
