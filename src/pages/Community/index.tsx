@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users, Plus } from 'lucide-react';
+import { Users, Plus, Minimize2, Maximize2 } from 'lucide-react';
 import { copy } from '@/constants/copy';
 import { CommunityMap } from './CommunityMap';
 import { CommunityFeed } from './CommunityFeed';
@@ -12,11 +12,17 @@ const DEFAULT_FILTERS: ReportFilters = {
   lokasi: 'berhampiran',
 };
 
+const MAP_HEIGHT_COLLAPSED = 220;
+const MAP_HEIGHT_EXPANDED = 380;
+
 export function Community() {
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_FILTERS);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [mapExpanded, setMapExpanded] = useState(false);
   const [userLat, setUserLat] = useState<number | undefined>();
   const [userLng, setUserLng] = useState<number | undefined>();
+
+  const mapHeight = mapExpanded ? MAP_HEIGHT_EXPANDED : MAP_HEIGHT_COLLAPSED;
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
@@ -37,11 +43,27 @@ export function Community() {
       </div>
 
       {/* Map section */}
-      <div className="mx-4 mb-3 rounded-xl overflow-hidden border">
-        <CommunityMap filters={filters} userLat={userLat} userLng={userLng} />
+      <div className="mx-4 mb-3 rounded-xl overflow-hidden border relative">
+        <CommunityMap
+          filters={filters}
+          userLat={userLat}
+          userLng={userLng}
+          height={mapHeight}
+        />
+        {/* Expand / collapse */}
+        <button
+          onClick={() => setMapExpanded((v) => !v)}
+          title={mapExpanded ? 'Kecilkan peta' : 'Besarkan peta'}
+          style={{ position: 'absolute', top: 8, left: 8, zIndex: 1000 }}
+          className="p-1.5 bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 shadow-sm active:scale-95 transition-transform"
+        >
+          {mapExpanded
+            ? <Minimize2 className="size-3.5 text-gray-600" />
+            : <Maximize2 className="size-3.5 text-gray-600" />}
+        </button>
       </div>
 
-      {/* Feed (FilterBar + list) fills remaining space */}
+      {/* Feed */}
       <div className="flex-1 overflow-hidden flex flex-col">
         <CommunityFeed
           filters={filters}
