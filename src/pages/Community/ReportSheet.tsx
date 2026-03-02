@@ -26,9 +26,9 @@ type Step = 'category' | 'subtype' | 'confirm';
 const STEPS: Step[] = ['category', 'subtype', 'confirm'];
 
 const HUJAN_SUBTYPES: { value: HujanSubType; emoji: string; label: string }[] = [
-  { value: 'renyai',   emoji: '🌦️', label: copy.community.subTypeRenyai },
-  { value: 'sederhana',emoji: '🌧️', label: copy.community.subTypeSederhana },
-  { value: 'lebat',    emoji: '⛈️', label: copy.community.subTypeLebat },
+  { value: 'renyai',    emoji: '🌦️', label: copy.community.subTypeRenyai },
+  { value: 'sederhana', emoji: '🌧️', label: copy.community.subTypeSederhana },
+  { value: 'lebat',     emoji: '⛈️', label: copy.community.subTypeLebat },
 ];
 
 const BAHAYA_SUBTYPES: { value: BahayaSubType; emoji: string; label: string }[] = [
@@ -72,23 +72,6 @@ async function reverseGeocode(lat: number, lng: number): Promise<string | null> 
   } catch {
     return null;
   }
-}
-
-function StepDots({ current }: { current: Step }) {
-  const idx = STEPS.indexOf(current);
-  return (
-    <div className="flex items-center justify-center gap-1.5 mb-1">
-      {STEPS.map((_, i) => (
-        <div
-          key={i}
-          className={cn(
-            'rounded-full transition-all',
-            i <= idx ? 'bg-primary w-4 h-1.5' : 'bg-muted w-1.5 h-1.5',
-          )}
-        />
-      ))}
-    </div>
-  );
 }
 
 export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps) {
@@ -170,18 +153,33 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
     );
   }
 
+  const stepIdx = STEPS.indexOf(step);
   const subtypes = category === 'hujan' ? HUJAN_SUBTYPES : BAHAYA_SUBTYPES;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="rounded-t-2xl px-5 pb-10 pt-4">
+
+        {/* Step progress bar */}
+        <div className="flex gap-1.5 mb-5">
+          {STEPS.map((_, i) => (
+            <div
+              key={i}
+              className={cn(
+                'h-1 flex-1 rounded-full transition-colors duration-300',
+                i <= stepIdx ? 'bg-primary' : 'bg-muted',
+              )}
+            />
+          ))}
+        </div>
+
+        {/* Title row */}
         <SheetHeader className="mb-5 text-left">
-          <StepDots current={step} />
-          <div className="flex items-center gap-2 mt-3">
+          <div className="flex items-center gap-3">
             {step !== 'category' && (
               <button
                 onClick={() => setStep(step === 'confirm' ? 'subtype' : 'category')}
-                className="flex items-center justify-center size-7 rounded-full bg-muted text-muted-foreground shrink-0 -ml-1"
+                className="flex items-center justify-center size-8 rounded-full bg-muted text-muted-foreground shrink-0"
               >
                 <ChevronLeft className="size-4" />
               </button>
@@ -199,14 +197,14 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => handleCategorySelect('hujan')}
-              className="flex flex-col items-center gap-3 py-6 rounded-2xl border-2 border-blue-100 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:border-blue-900 dark:text-blue-400 font-semibold transition-colors active:scale-[0.97]"
+              className="flex flex-col items-center gap-3 py-7 rounded-2xl border-2 border-blue-100 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:border-blue-900 dark:text-blue-400 font-semibold active:scale-[0.97] transition-transform"
             >
               <CloudRain className="size-8" />
               <span className="text-sm">{copy.community.categoryHujan}</span>
             </button>
             <button
               onClick={() => handleCategorySelect('bahaya')}
-              className="flex flex-col items-center gap-3 py-6 rounded-2xl border-2 border-orange-100 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:border-orange-900 dark:text-orange-400 font-semibold transition-colors active:scale-[0.97]"
+              className="flex flex-col items-center gap-3 py-7 rounded-2xl border-2 border-orange-100 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:border-orange-900 dark:text-orange-400 font-semibold active:scale-[0.97] transition-transform"
             >
               <TriangleAlert className="size-8" />
               <span className="text-sm">{copy.community.categoryBahaya}</span>
@@ -221,7 +219,7 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
               <button
                 key={value}
                 onClick={() => handleSubTypeSelect(value)}
-                className="flex items-center gap-3 p-4 rounded-xl border text-sm font-medium text-left transition-colors hover:bg-muted active:scale-[0.97]"
+                className="flex items-center gap-3 p-4 rounded-xl border bg-muted/30 text-sm font-medium text-left active:scale-[0.97] transition-transform"
               >
                 <span className="text-xl leading-none">{emoji}</span>
                 <span>{label}</span>
@@ -232,11 +230,11 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
 
         {/* Step 3 — confirm */}
         {step === 'confirm' && (
-          <div className="space-y-4">
+          <div className="space-y-2">
             {/* Selection summary */}
             {category && subType && (
-              <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-muted/60 border">
-                <span className="text-xl leading-none">{SUBTYPE_EMOJI[subType]}</span>
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/50">
+                <span className="text-2xl leading-none">{SUBTYPE_EMOJI[subType]}</span>
                 <div>
                   <p className="text-sm font-semibold">
                     {category === 'hujan' ? copy.community.categoryHujan : copy.community.categoryBahaya}
@@ -249,13 +247,13 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
             )}
 
             {/* Location */}
-            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border bg-muted/40">
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/50">
               <MapPin className="size-4 text-muted-foreground shrink-0" />
               {locating ? (
-                <span className="text-sm text-muted-foreground flex items-center gap-2">
-                  <Loader2 className="size-3 animate-spin" />
-                  {copy.community.detectingLocation}
-                </span>
+                <div className="flex items-center gap-2">
+                  <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">{copy.community.detectingLocation}</span>
+                </div>
               ) : (
                 <div>
                   <p className="text-sm font-medium">{state ?? '—'}</p>
@@ -267,7 +265,7 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
             {/* Error */}
             {errorMsg && (
               <div className={cn(
-                'px-4 py-3 rounded-xl text-sm',
+                'p-4 rounded-xl text-sm',
                 errorMsg === copy.community.submitRateLimited
                   ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
                   : 'bg-destructive/10 text-destructive',
@@ -276,18 +274,21 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
               </div>
             )}
 
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={handleSubmit}
-              disabled={isPending || locating || !lat || !state}
-            >
-              {isPending
-                ? <><Loader2 className="size-4 animate-spin" />{copy.community.submitting}</>
-                : copy.community.submitButton}
-            </Button>
+            <div className="pt-2">
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleSubmit}
+                disabled={isPending || locating || !lat || !state}
+              >
+                {isPending
+                  ? <><Loader2 className="size-4 animate-spin" />{copy.community.submitting}</>
+                  : copy.community.submitButton}
+              </Button>
+            </div>
           </div>
         )}
+
       </SheetContent>
     </Sheet>
   );
