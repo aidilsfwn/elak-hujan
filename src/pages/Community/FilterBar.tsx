@@ -29,7 +29,7 @@ const MASA_OPTIONS = [
 
 const chip = (active: boolean) =>
   cn(
-    'px-3 py-1 rounded-full text-xs font-medium transition-colors shrink-0',
+    'h-8 px-3 rounded-full text-xs font-medium transition-colors shrink-0',
     active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
   );
 
@@ -88,7 +88,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
             <SelectTrigger
               size="sm"
               className={cn(
-                '!h-auto rounded-full border-0 py-1 px-3 text-xs font-medium shadow-none',
+                'h-8 rounded-full border-0 px-3 text-xs font-medium shadow-none',
                 stateValue
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90 [&_svg]:text-primary-foreground'
                   : 'bg-muted text-muted-foreground',
