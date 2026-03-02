@@ -19,6 +19,13 @@ export function CommunityFeed({ filters, onFiltersChange, onReportSelect, userLa
 
   return (
     <div className="flex flex-col h-full">
+      <div className="px-4 pt-3 pb-2 flex items-center justify-between">
+        <p className="text-sm font-semibold">{copy.community.feedTitle}</p>
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="size-1.5 rounded-full bg-green-500 animate-pulse" />
+          {copy.community.feedLive}
+        </span>
+      </div>
       <FilterBar filters={filters} onChange={onFiltersChange} />
 
       <div className="flex-1 overflow-y-auto">

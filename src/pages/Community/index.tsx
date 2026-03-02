@@ -43,13 +43,16 @@ export function Community() {
   return (
     <div className="flex flex-col h-full relative">
       {/* Header */}
-      <div className="px-4 pt-6 pb-3 flex items-center gap-2">
-        <Users className="size-5 text-primary" />
-        <h1 className="text-xl font-bold">Komuniti</h1>
+      <div className="px-4 pt-6 pb-3">
+        <div className="flex items-center gap-2 mb-0.5">
+          <Users className="size-5 text-primary" />
+          <h1 className="text-xl font-bold">Komuniti</h1>
+        </div>
+        <p className="text-sm text-muted-foreground">{copy.community.pageSubtitle}</p>
       </div>
 
       {/* Map section */}
-      <div className="mx-4 mb-3 rounded-xl overflow-hidden border relative">
+      <div className="mx-4 rounded-xl overflow-hidden border relative">
         <CommunityMap
           filters={filters}
           userLat={userLat}
@@ -69,6 +72,9 @@ export function Community() {
             : <Maximize2 className="size-3.5 text-gray-600" />}
         </button>
       </div>
+
+      {/* Map tip */}
+      <p className="px-4 pt-2 pb-1 text-xs text-muted-foreground">{copy.community.mapTip}</p>
 
       {/* Feed */}
       <div className="flex-1 overflow-hidden flex flex-col">

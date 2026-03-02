@@ -1,7 +1,12 @@
-import { CloudRain, TriangleAlert, ThumbsUp } from 'lucide-react';
+import { ThumbsUp } from 'lucide-react';
 import { copy } from '@/constants/copy';
 import { useConfirmReport } from '@/hooks/useConfirmReport';
 import type { CommunityReport } from '@/types/community';
+
+const SUBTYPE_EMOJI: Record<string, string> = {
+  renyai: '🌦️', sederhana: '🌧️', lebat: '⛈️',
+  banjir_kilat: '🌊', jalan_banjir: '🚧', pokok_tumbang: '🌳', lain: '⚠️',
+};
 
 const SUB_TYPE_LABELS: Record<string, string> = {
   renyai: copy.community.subTypeRenyai,
@@ -31,18 +36,10 @@ export function FeedCard({ report, onSelect }: FeedCardProps) {
       className="flex items-center gap-3 px-4 py-3 border-b cursor-pointer active:bg-muted/50 transition-colors"
       onClick={onSelect}
     >
-      <div
-        className={
-          report.category === 'hujan'
-            ? 'text-blue-500 shrink-0'
-            : 'text-orange-500 shrink-0'
-        }
-      >
-        {report.category === 'hujan' ? (
-          <CloudRain className="size-5" />
-        ) : (
-          <TriangleAlert className="size-5" />
-        )}
+      <div className={`size-9 rounded-full flex items-center justify-center text-base shrink-0 ${
+        report.category === 'hujan' ? 'bg-blue-50' : 'bg-orange-50'
+      }`}>
+        {SUBTYPE_EMOJI[report.sub_type] ?? '⚠️'}
       </div>
 
       <div className="flex-1 min-w-0">

@@ -98,6 +98,10 @@ export const copy = {
     subNavMap: "Peta",
     subNavFeed: "Suapan",
     fab: "Laporkan",
+    pageSubtitle: "Kongsi keadaan hujan & bahaya di kawasan anda",
+    mapTip: "Ketik laporan untuk pergi ke lokasinya",
+    feedTitle: "Laporan Terkini",
+    feedLive: "Langsung",
 
     filterJenis: "Jenis",
     filterMasa: "Masa",
