@@ -4,16 +4,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { FilterBar } from './FilterBar';
 import { FeedCard } from './FeedCard';
-import type { ReportFilters } from '@/types/community';
+import type { CommunityReport, ReportFilters } from '@/types/community';
 
 interface CommunityFeedProps {
   filters: ReportFilters;
   onFiltersChange: (filters: ReportFilters) => void;
+  onReportSelect: (report: CommunityReport) => void;
   userLat?: number;
   userLng?: number;
 }
 
-export function CommunityFeed({ filters, onFiltersChange, userLat, userLng }: CommunityFeedProps) {
+export function CommunityFeed({ filters, onFiltersChange, onReportSelect, userLat, userLng }: CommunityFeedProps) {
   const { data: reports, isLoading, isError, refetch } = useReports(filters, userLat, userLng);
 
   return (
@@ -54,7 +55,7 @@ export function CommunityFeed({ filters, onFiltersChange, userLat, userLng }: Co
         {!isLoading && !isError && reports && reports.length > 0 && (
           <div>
             {reports.map((report) => (
-              <FeedCard key={report.id} report={report} />
+              <FeedCard key={report.id} report={report} onSelect={() => onReportSelect(report)} />
             ))}
           </div>
         )}

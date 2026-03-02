@@ -4,7 +4,7 @@ import { copy } from '@/constants/copy';
 import { CommunityMap } from './CommunityMap';
 import { CommunityFeed } from './CommunityFeed';
 import { ReportSheet } from './ReportSheet';
-import type { ReportFilters } from '@/types/community';
+import type { CommunityReport, ReportFilters } from '@/types/community';
 
 const DEFAULT_FILTERS: ReportFilters = {
   jenis: 'semua',
@@ -19,8 +19,14 @@ export function Community() {
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_FILTERS);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mapExpanded, setMapExpanded] = useState(false);
+  const [focusTarget, setFocusTarget] = useState<{ lat: number; lng: number; id: string } | null>(null);
   const [userLat, setUserLat] = useState<number | undefined>();
   const [userLng, setUserLng] = useState<number | undefined>();
+
+  function handleReportSelect(report: CommunityReport) {
+    setMapExpanded(true);
+    setFocusTarget({ lat: report.lat, lng: report.lng, id: report.id });
+  }
 
   const mapHeight = mapExpanded ? MAP_HEIGHT_EXPANDED : MAP_HEIGHT_COLLAPSED;
 
@@ -49,6 +55,7 @@ export function Community() {
           userLat={userLat}
           userLng={userLng}
           height={mapHeight}
+          focusTarget={focusTarget}
         />
         {/* Expand / collapse */}
         <button
@@ -68,6 +75,7 @@ export function Community() {
         <CommunityFeed
           filters={filters}
           onFiltersChange={setFilters}
+          onReportSelect={handleReportSelect}
           userLat={userLat}
           userLng={userLng}
         />

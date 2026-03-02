@@ -15,9 +15,10 @@ const SUB_TYPE_LABELS: Record<string, string> = {
 
 interface FeedCardProps {
   report: CommunityReport;
+  onSelect: () => void;
 }
 
-export function FeedCard({ report }: FeedCardProps) {
+export function FeedCard({ report, onSelect }: FeedCardProps) {
   const { mutate: confirm, isPending } = useConfirmReport();
 
   const minutesAgo = Math.max(
@@ -26,7 +27,10 @@ export function FeedCard({ report }: FeedCardProps) {
   );
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 border-b">
+    <div
+      className="flex items-center gap-3 px-4 py-3 border-b cursor-pointer active:bg-muted/50 transition-colors"
+      onClick={onSelect}
+    >
       <div
         className={
           report.category === 'hujan'
@@ -49,7 +53,7 @@ export function FeedCard({ report }: FeedCardProps) {
       </div>
 
       <button
-        onClick={() => confirm(report.id)}
+        onClick={(e) => { e.stopPropagation(); confirm(report.id); }}
         disabled={isPending}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50 shrink-0"
       >

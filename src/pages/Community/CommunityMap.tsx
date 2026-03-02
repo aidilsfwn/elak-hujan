@@ -9,6 +9,7 @@ interface CommunityMapProps {
   userLat?: number;
   userLng?: number;
   height: number;
+  focusTarget?: { lat: number; lng: number; id: string } | null;
 }
 
 const DEFAULT_CENTER: [number, number] = [3.147, 101.6958]; // KL
@@ -78,7 +79,7 @@ function makeUserMarker(): L.Marker {
   return L.marker([0, 0], { icon, zIndexOffset: 1000 });
 }
 
-export function CommunityMap({ filters, userLat, userLng, height }: CommunityMapProps) {
+export function CommunityMap({ filters, userLat, userLng, height, focusTarget }: CommunityMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.LayerGroup | null>(null);
@@ -127,6 +128,12 @@ export function CommunityMap({ filters, userLat, userLng, height }: CommunityMap
     const t = setTimeout(() => mapRef.current?.invalidateSize(), 350);
     return () => clearTimeout(t);
   }, [height]);
+
+  // Fly to a selected report pin
+  useEffect(() => {
+    if (!mapRef.current || !focusTarget) return;
+    mapRef.current.flyTo([focusTarget.lat, focusTarget.lng], 15, { animate: true, duration: 0.8 });
+  }, [focusTarget]);
 
   // Update user location marker + radius circle
   useEffect(() => {
