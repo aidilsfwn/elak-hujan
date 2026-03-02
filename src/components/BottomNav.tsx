@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom';
-import { CalendarDays, Clock, Settings } from 'lucide-react';
+import { CalendarDays, Clock, Users, Settings } from 'lucide-react';
 import { copy } from '@/constants/copy';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
-  { to: '/', end: true,  Icon: CalendarDays, label: copy.nav.weekly },
-  { to: '/leave', end: false, Icon: Clock,        label: copy.nav.leave },
-  { to: '/settings', end: false, Icon: Settings,     label: copy.nav.settings },
+  { to: '/',          end: true,  Icon: CalendarDays, label: copy.nav.weekly },
+  { to: '/leave',     end: false, Icon: Clock,        label: copy.nav.leave },
+  { to: '/komuniti',  end: false, Icon: Users,        label: copy.nav.community },
+  { to: '/settings',  end: false, Icon: Settings,     label: copy.nav.settings },
 ] as const;
 
 export function BottomNav() {

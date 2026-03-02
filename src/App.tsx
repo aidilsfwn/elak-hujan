@@ -6,6 +6,7 @@ import { BottomNav } from '@/components/BottomNav';
 import { Weekly } from '@/pages/Weekly';
 import { DayDetail } from '@/pages/DayDetail';
 import { LeaveAdvisor } from '@/pages/LeaveAdvisor';
+import { Community } from '@/pages/Community';
 import { Settings } from '@/pages/Settings';
 import { Onboarding } from '@/pages/Onboarding';
 
@@ -31,6 +32,7 @@ function AppRoutes() {
           <Route path="/" element={<Weekly />} />
           <Route path="/day/:date" element={<DayDetail />} />
           <Route path="/leave" element={<LeaveAdvisor />} />
+          <Route path="/komuniti" element={<Community />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
