@@ -38,7 +38,7 @@ export async function fetchReports(
 
   // Client-side distance filter for 'berhampiran' (25km radius)
   if (filters.lokasi === 'berhampiran' && userLat != null && userLng != null) {
-    reports = reports.filter((r) => haversineKm(userLat, userLng, r.lat, r.lng) <= 25);
+    reports = reports.filter((r) => haversineKm(userLat, userLng, r.lat, r.lng) <= 10);
   }
 
   return reports;

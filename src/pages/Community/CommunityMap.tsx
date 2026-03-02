@@ -11,7 +11,7 @@ interface CommunityMapProps {
 
 const DEFAULT_CENTER: [number, number] = [3.147, 101.6958]; // KL
 const DEFAULT_ZOOM = 12;
-const RADIUS_METRES = 25_000;
+const RADIUS_METRES = 10_000;
 
 // Emoji + glow colour per sub_type
 const MARKER_CONFIG: Record<string, { emoji: string; bg: string; glow: string }> = {
@@ -198,7 +198,7 @@ export function CommunityMap({ filters, userLat, userLng }: CommunityMapProps) {
       `}</style>
       <div
         ref={containerRef}
-        style={{ height: 'calc(100dvh - 8rem)', width: '100%' }}
+        style={{ height: '240px', width: '100%' }}
       />
     </>
   );
