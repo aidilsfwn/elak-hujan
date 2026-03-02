@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { CloudRain, TriangleAlert, MapPin, Loader2, ChevronLeft } from 'lucide-react';
+import { CloudRain, TriangleAlert, MapPin, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -72,6 +71,25 @@ async function reverseGeocode(lat: number, lng: number): Promise<string | null> 
   } catch {
     return null;
   }
+}
+
+function StepDots({ current }: { current: Step }) {
+  const idx = STEPS.indexOf(current);
+  return (
+    <div className="flex items-center justify-center gap-1.5">
+      {STEPS.map((_, i) => (
+        <div
+          key={i}
+          className={cn(
+            'rounded-full transition-all duration-300',
+            i === idx ? 'w-5 h-2 bg-primary'
+            : i < idx  ? 'w-2 h-2 bg-primary/40'
+            :             'w-2 h-2 bg-border',
+          )}
+        />
+      ))}
+    </div>
+  );
 }
 
 export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps) {
@@ -153,48 +171,32 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
     );
   }
 
-  const stepIdx = STEPS.indexOf(step);
   const subtypes = category === 'hujan' ? HUJAN_SUBTYPES : BAHAYA_SUBTYPES;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-2xl px-5 pb-10 pt-4">
-
-        {/* Step progress bar */}
-        <div className="flex gap-1.5 mb-5">
-          {STEPS.map((_, i) => (
-            <div
-              key={i}
-              className={cn(
-                'h-1 flex-1 rounded-full transition-colors duration-300',
-                i <= stepIdx ? 'bg-primary' : 'bg-muted',
-              )}
-            />
-          ))}
-        </div>
+      <SheetContent side="bottom" className="rounded-t-2xl px-5 pt-5 pb-8">
 
         {/* Title row */}
-        <SheetHeader className="mb-5 text-left">
-          <div className="flex items-center gap-3">
-            {step !== 'category' && (
-              <button
-                onClick={() => setStep(step === 'confirm' ? 'subtype' : 'category')}
-                className="flex items-center justify-center size-8 rounded-full bg-muted text-muted-foreground shrink-0"
-              >
-                <ChevronLeft className="size-4" />
-              </button>
-            )}
-            <SheetTitle className="text-base">
-              {step === 'category' && copy.community.stepCategory}
-              {step === 'subtype' && copy.community.stepSubType}
-              {step === 'confirm' && 'Sahkan laporan'}
-            </SheetTitle>
-          </div>
-        </SheetHeader>
+        <div className="flex items-center gap-2 mb-6">
+          {step !== 'category' && (
+            <button
+              onClick={() => setStep(step === 'confirm' ? 'subtype' : 'category')}
+              className="flex items-center justify-center size-8 rounded-full bg-muted text-muted-foreground shrink-0"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+          )}
+          <SheetTitle className="text-base font-semibold">
+            {step === 'category' && copy.community.stepCategory}
+            {step === 'subtype' && copy.community.stepSubType}
+            {step === 'confirm' && 'Sahkan laporan'}
+          </SheetTitle>
+        </div>
 
         {/* Step 1 — category */}
         {step === 'category' && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 mb-6">
             <button
               onClick={() => handleCategorySelect('hujan')}
               className="flex flex-col items-center gap-3 py-7 rounded-2xl border-2 border-blue-100 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:border-blue-900 dark:text-blue-400 font-semibold active:scale-[0.97] transition-transform"
@@ -214,15 +216,16 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
 
         {/* Step 2 — subtype */}
         {step === 'subtype' && (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-2 mb-6">
             {subtypes.map(({ value, emoji, label }) => (
               <button
                 key={value}
                 onClick={() => handleSubTypeSelect(value)}
-                className="flex items-center gap-3 p-4 rounded-xl border bg-muted/30 text-sm font-medium text-left active:scale-[0.97] transition-transform"
+                className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-muted/50 text-sm font-medium text-left active:scale-[0.98] transition-transform"
               >
                 <span className="text-xl leading-none">{emoji}</span>
-                <span>{label}</span>
+                <span className="flex-1">{label}</span>
+                <ChevronRight className="size-4 text-muted-foreground shrink-0" />
               </button>
             ))}
           </div>
@@ -230,10 +233,10 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
 
         {/* Step 3 — confirm */}
         {step === 'confirm' && (
-          <div className="space-y-2">
+          <div className="space-y-2 mb-6">
             {/* Selection summary */}
             {category && subType && (
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/50">
+              <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-muted/50">
                 <span className="text-2xl leading-none">{SUBTYPE_EMOJI[subType]}</span>
                 <div>
                   <p className="text-sm font-semibold">
@@ -247,7 +250,7 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
             )}
 
             {/* Location */}
-            <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/50">
+            <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-muted/50">
               <MapPin className="size-4 text-muted-foreground shrink-0" />
               {locating ? (
                 <div className="flex items-center gap-2">
@@ -265,7 +268,7 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
             {/* Error */}
             {errorMsg && (
               <div className={cn(
-                'p-4 rounded-xl text-sm',
+                'px-4 py-3.5 rounded-xl text-sm',
                 errorMsg === copy.community.submitRateLimited
                   ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
                   : 'bg-destructive/10 text-destructive',
@@ -274,7 +277,7 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
               </div>
             )}
 
-            <div className="pt-2">
+            <div className="pt-1">
               <Button
                 className="w-full"
                 size="lg"
@@ -288,6 +291,9 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
             </div>
           </div>
         )}
+
+        {/* Step indicator — always at the bottom */}
+        <StepDots current={step} />
 
       </SheetContent>
     </Sheet>
