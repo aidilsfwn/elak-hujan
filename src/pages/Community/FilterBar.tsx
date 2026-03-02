@@ -88,7 +88,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
             <SelectTrigger
               size="sm"
               className={cn(
-                'h-auto rounded-full border-0 py-1 px-3 text-xs font-medium shadow-none',
+                '!h-auto rounded-full border-0 py-1 px-3 text-xs font-medium shadow-none',
                 stateValue
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90 [&_svg]:text-primary-foreground'
                   : 'bg-muted text-muted-foreground',
