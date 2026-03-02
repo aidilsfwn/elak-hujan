@@ -1,4 +1,3 @@
-import { RefreshCw } from 'lucide-react';
 import { copy } from '@/constants/copy';
 import { useReports } from '@/hooks/useReports';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -57,15 +56,6 @@ export function CommunityFeed({ filters, onFiltersChange, userLat, userLng }: Co
             {reports.map((report) => (
               <FeedCard key={report.id} report={report} />
             ))}
-            <div className="flex justify-center p-4">
-              <button
-                onClick={() => refetch()}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground"
-              >
-                <RefreshCw className="size-3" />
-                Muat semula
-              </button>
-            </div>
           </div>
         )}
       </div>

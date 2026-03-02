@@ -122,9 +122,10 @@ export function CommunityMap({ filters, userLat, userLng, height }: CommunityMap
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Invalidate map size when height changes
+  // Invalidate map size after height transition completes
   useEffect(() => {
-    mapRef.current?.invalidateSize();
+    const t = setTimeout(() => mapRef.current?.invalidateSize(), 350);
+    return () => clearTimeout(t);
   }, [height]);
 
   // Update user location marker + radius circle
@@ -210,7 +211,7 @@ export function CommunityMap({ filters, userLat, userLng, height }: CommunityMap
         .dark-popup .leaflet-popup-tip { background:#1e293b; }
       `}</style>
 
-      <div style={{ position: 'relative', height, width: '100%' }}>
+      <div style={{ position: 'relative', height, width: '100%', transition: 'height 0.35s ease' }}>
         <div ref={containerRef} style={{ height: '100%', width: '100%' }} />
 
         {/* Recenter button */}
