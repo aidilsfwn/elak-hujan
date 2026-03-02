@@ -175,6 +175,36 @@ export function CommunityMap({ filters, userLat, userLng, height }: CommunityMap
           background: transparent !important;
           box-shadow: none !important;
         }
+        .leaflet-control-zoom {
+          border: none !important;
+          box-shadow: none !important;
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 4px !important;
+        }
+        .leaflet-control-zoom-in,
+        .leaflet-control-zoom-out {
+          width: 28px !important;
+          height: 28px !important;
+          line-height: 28px !important;
+          background: rgba(255,255,255,0.9) !important;
+          backdrop-filter: blur(4px) !important;
+          -webkit-backdrop-filter: blur(4px) !important;
+          border-radius: 8px !important;
+          border: 1px solid #e5e7eb !important;
+          box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05) !important;
+          color: #4b5563 !important;
+          font-size: 14px !important;
+          font-weight: 500 !important;
+          transition: transform 0.15s !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+        }
+        .leaflet-control-zoom-in:active,
+        .leaflet-control-zoom-out:active {
+          transform: scale(0.95) !important;
+        }
         .dark-popup .leaflet-popup-content-wrapper { background:transparent; box-shadow:none; padding:0; }
         .dark-popup .leaflet-popup-content { margin:0; }
         .dark-popup .leaflet-popup-tip { background:#1e293b; }

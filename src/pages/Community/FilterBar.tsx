@@ -1,6 +1,13 @@
 import { copy } from '@/constants/copy';
 import { MALAYSIAN_STATES } from '@/constants/malaysia';
 import { cn } from '@/lib/utils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { ReportFilters } from '@/types/community';
 
 interface FilterBarProps {
@@ -73,23 +80,30 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
           >
             {copy.community.filterNearMe}
           </button>
-          <select
+
+          <Select
             value={stateValue}
-            onChange={(e) => {
-              if (e.target.value) onChange({ ...filters, lokasi: e.target.value });
-            }}
-            className={cn(
-              'px-3 py-1 rounded-full text-xs font-medium transition-colors border-0 outline-none cursor-pointer',
-              stateValue
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground',
-            )}
+            onValueChange={(val) => val && onChange({ ...filters, lokasi: val })}
           >
-            <option value="">Negeri ▾</option>
-            {MALAYSIAN_STATES.map((state) => (
-              <option key={state} value={state}>{state}</option>
-            ))}
-          </select>
+            <SelectTrigger
+              size="sm"
+              className={cn(
+                'h-auto rounded-full border-0 py-1 px-3 text-xs font-medium shadow-none',
+                stateValue
+                  ? 'bg-primary text-primary-foreground hover:bg-primary/90 [&_svg]:text-primary-foreground'
+                  : 'bg-muted text-muted-foreground',
+              )}
+            >
+              <SelectValue placeholder="Negeri" />
+            </SelectTrigger>
+            <SelectContent>
+              {MALAYSIAN_STATES.map((state) => (
+                <SelectItem key={state} value={state}>
+                  {state}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
     </div>
