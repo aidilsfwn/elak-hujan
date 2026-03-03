@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { CalendarDays, Clock, Users, Settings } from 'lucide-react';
 import { copy } from '@/constants/copy';
 import { cn } from '@/lib/utils';
+import { useCommunityCount } from '@/hooks/useCommunityCount';
 
 const NAV_ITEMS = [
   { to: '/',          end: true,  Icon: CalendarDays, label: copy.nav.weekly },
@@ -11,6 +12,8 @@ const NAV_ITEMS = [
 ] as const;
 
 export function BottomNav() {
+  const communityCount = useCommunityCount();
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto border-t bg-background/95 backdrop-blur-sm z-10">
       <div className="flex items-center justify-around h-16">
@@ -20,7 +23,7 @@ export function BottomNav() {
               <div className="flex flex-col items-center gap-0.5 py-2">
                 <div
                   className={cn(
-                    'px-4 py-1 rounded-full transition-colors',
+                    'px-4 py-1 rounded-full transition-colors relative',
                     isActive ? 'bg-primary/12' : '',
                   )}
                 >
@@ -30,6 +33,11 @@ export function BottomNav() {
                       isActive ? 'text-primary' : 'text-muted-foreground',
                     )}
                   />
+                  {to === '/komuniti' && communityCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center px-0.5">
+                      {communityCount > 9 ? '9+' : communityCount}
+                    </span>
+                  )}
                 </div>
                 <span
                   className={cn(

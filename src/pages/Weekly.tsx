@@ -2,6 +2,7 @@ import { CalendarDays, RefreshCw } from 'lucide-react';
 import { useDayRecommendation } from '@/hooks/useDayRecommendation';
 import { useLeaveAdvisorVisible } from '@/hooks/useLeaveAdvisorVisible';
 import { useConfig } from '@/hooks/useConfig';
+import { useWeather } from '@/hooks/useWeather';
 import { useNowcast } from '@/hooks/useNowcast';
 import { DayCard } from '@/components/DayCard';
 import { LeavePanel } from '@/components/LeavePanel';
@@ -10,14 +11,51 @@ import { MetForecastSection } from '@/components/MetForecastSection';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { copy } from '@/constants/copy';
+import { getCurrentHourProb } from '@/lib/rainScoring';
+import { WEATHER_CACHE_MINUTES } from '@/constants/thresholds';
+import type { WeatherData } from '@/types/weather';
+
+function NowWidget({ homeWeather, rainThreshold }: { homeWeather: WeatherData; rainThreshold: number }) {
+  const prob = getCurrentHourProb(homeWeather);
+  if (prob === null) return null;
+
+  const verdict =
+    prob < rainThreshold
+      ? { label: copy.weekly.nowWidget.safe, borderColor: 'border-l-green-500', dotColor: 'bg-green-500' }
+      : prob < 70
+      ? { label: copy.weekly.nowWidget.caution, borderColor: 'border-l-amber-500', dotColor: 'bg-amber-500' }
+      : { label: copy.weekly.nowWidget.wait, borderColor: 'border-l-red-500', dotColor: 'bg-red-500' };
+
+  return (
+    <div className={`rounded-xl border-l-4 border bg-card px-4 py-3 flex items-center gap-3 ${verdict.borderColor}`}>
+      <div className={`size-2 rounded-full shrink-0 ${verdict.dotColor}`} />
+      <div className="flex-1">
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{copy.weekly.nowWidget.title}</p>
+        <p className="text-sm font-semibold leading-tight">{verdict.label}</p>
+      </div>
+      <div className="flex flex-col items-end gap-0.5">
+        <span className="text-xs rounded-full bg-muted px-2 py-0.5 font-medium">
+          {copy.weekly.nowWidget.probLabel(Math.round(prob))}
+        </span>
+        <span className="text-[9px] text-muted-foreground">Skop: lokasi rumah</span>
+      </div>
+    </div>
+  );
+}
 
 export function Weekly() {
   const { config } = useConfig();
   const { days, isLoading, isError, isFetching, refetch } = useDayRecommendation();
+  const { homeWeather, dataUpdatedAt } = useWeather();
   const showLeavePanel = useLeaveAdvisorVisible();
   const { forecast, isLoading: isForecastLoading, isError: isForecastError } = useNowcast(config?.officeLocation);
 
   if (!config) return null;
+
+  const minutesAgo = dataUpdatedAt
+    ? Math.max(0, Math.floor((Date.now() - dataUpdatedAt) / 60_000))
+    : null;
+  const isFresh = minutesAgo !== null && minutesAgo < WEATHER_CACHE_MINUTES;
 
   return (
     <div className="px-4 py-6 space-y-4">
@@ -37,6 +75,14 @@ export function Weekly() {
               })}
             </p>
           )}
+          {minutesAgo !== null && (
+            <p className="flex items-center gap-1 text-[10px] mt-0.5">
+              <span className={`size-1.5 rounded-full ${isFresh ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground'}`} />
+              <span className={isFresh ? 'text-green-600' : 'text-muted-foreground'}>
+                {minutesAgo === 0 ? copy.weekly.updatedNow : copy.weekly.updatedAgo(minutesAgo)}
+              </span>
+            </p>
+          )}
         </div>
         {isFetching && !isLoading && (
           <RefreshCw className="size-4 text-muted-foreground animate-spin mt-1" />
@@ -48,6 +94,11 @@ export function Weekly() {
 
       {/* MET official daily forecast */}
       <MetForecastSection forecast={forecast} isLoading={isForecastLoading} isError={isForecastError} />
+
+      {/* Right-now widget */}
+      {homeWeather && !isLoading && (
+        <NowWidget homeWeather={homeWeather} rainThreshold={config.rainThreshold} />
+      )}
 
       {/* Leave panel — auto-surfaces 2h before evening window */}
       {showLeavePanel && !isLoading && !isError && <LeavePanel />}

@@ -6,6 +6,7 @@ import { RiskBadge } from '@/components/RiskBadge';
 import { useWeather } from '@/hooks/useWeather';
 import { useConfig } from '@/hooks/useConfig';
 import { extractWindowAverage, toLocalDateStr } from '@/lib/rainScoring';
+import { getRecommendedLeaveTime } from '@/lib/leaveAdvisor';
 import { copy } from '@/constants/copy';
 import { cn } from '@/lib/utils';
 import type { WeatherData } from '@/types/weather';
@@ -25,6 +26,7 @@ interface HourlyBarChartProps {
   eveningStartH: number;
   eveningEndH: number;
   rainThreshold: number;
+  bestLeaveHour?: number;
 }
 
 function HourlyBarChart({
@@ -35,6 +37,7 @@ function HourlyBarChart({
   eveningStartH,
   eveningEndH,
   rainThreshold,
+  bestLeaveHour,
 }: HourlyBarChartProps) {
   const BAR_HEIGHT = 64;
 
@@ -50,25 +53,35 @@ function HourlyBarChart({
           const isEvening = hour >= eveningStartH && hour < eveningEndH;
           const isSevere = prob >= 70;
           const isRisky = prob >= rainThreshold;
+          const isBestSlot = hour === bestLeaveHour;
 
           return (
             <div key={hour} className="flex flex-col items-center">
-              <div
-                className={cn(
-                  'w-8 flex items-end justify-center rounded-t',
-                  isMorning ? 'bg-sky-100' : isEvening ? 'bg-violet-100' : '',
-                )}
-                style={{ height: `${BAR_HEIGHT}px` }}
-              >
-                {prob > 0 && (
+              <div style={{ position: 'relative', height: `${BAR_HEIGHT + 10}px` }} className="flex items-end justify-center w-8">
+                {isBestSlot && (
                   <div
-                    className={cn(
-                      'w-[26px] rounded-t-sm transition-all',
-                      isSevere ? 'bg-red-400' : isRisky ? 'bg-amber-400' : 'bg-emerald-400',
-                    )}
-                    style={{ height: `${(prob / 100) * BAR_HEIGHT}px` }}
+                    title={copy.dayDetail.bestSlot}
+                    aria-label={copy.dayDetail.bestSlot}
+                    className="absolute top-0 left-1/2 -translate-x-1/2 size-2 rounded-full bg-primary ring-2 ring-primary/30"
                   />
                 )}
+                <div
+                  className={cn(
+                    'w-8 flex items-end justify-center rounded-t',
+                    isMorning ? 'bg-sky-100' : isEvening ? 'bg-violet-100' : '',
+                  )}
+                  style={{ height: `${BAR_HEIGHT}px` }}
+                >
+                  {prob > 0 && (
+                    <div
+                      className={cn(
+                        'w-[26px] rounded-t-sm transition-all',
+                        isSevere ? 'bg-red-400' : isRisky ? 'bg-amber-400' : 'bg-emerald-400',
+                      )}
+                      style={{ height: `${(prob / 100) * BAR_HEIGHT}px` }}
+                    />
+                  )}
+                </div>
               </div>
               <span
                 className={cn(
@@ -133,6 +146,13 @@ export function DayDetail() {
   const eveningScore = officeWeather
     ? extractWindowAverage(officeWeather, date, config.eveningWindow.start, config.eveningWindow.end)
     : null;
+
+  const leaveRec = officeWeather
+    ? getRecommendedLeaveTime(officeWeather, date, config.eveningWindow, config.rainThreshold)
+    : null;
+  const bestLeaveHour = leaveRec?.recommendedTime
+    ? parseInt(leaveRec.recommendedTime.slice(0, 2), 10)
+    : undefined;
 
   return (
     <div className="px-4 py-4 space-y-5">
@@ -218,6 +238,7 @@ export function DayDetail() {
                 eveningStartH={eveningStartH}
                 eveningEndH={eveningEndH}
                 rainThreshold={config.rainThreshold}
+                bestLeaveHour={bestLeaveHour}
               />
             </div>
           )}

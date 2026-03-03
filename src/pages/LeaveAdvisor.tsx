@@ -1,11 +1,15 @@
-import { AlertTriangle, ArrowLeft, Clock, Navigation, RefreshCw, Umbrella } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Clock, Navigation, RefreshCw, Thermometer, Umbrella } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RainBar } from '@/components/RainBar';
+import { RideabilityBadge } from '@/components/RideabilityBadge';
+import { GearCheckPanel } from '@/components/GearCheckPanel';
 import { useWeather } from '@/hooks/useWeather';
 import { useConfig } from '@/hooks/useConfig';
 import { getRecommendedLeaveTime, getRollingSlots } from '@/lib/leaveAdvisor';
+import { toLocalDateStr } from '@/lib/rainScoring';
 import { copy } from '@/constants/copy';
+import { WEATHER_CACHE_MINUTES } from '@/constants/thresholds';
 import { cn } from '@/lib/utils';
 
 function SlotRow({
@@ -40,7 +44,7 @@ function SlotRow({
 
 export function LeaveAdvisor() {
   const { config } = useConfig();
-  const { officeWeather, isLoading, isError, refetch } = useWeather();
+  const { officeWeather, isLoading, isError, refetch, dataUpdatedAt } = useWeather();
 
   if (!config) return null;
 
@@ -55,6 +59,21 @@ export function LeaveAdvisor() {
     ? getRollingSlots(officeWeather, today, currentHour, 4)
     : [];
 
+  // Current temperature from office weather
+  const currentTempIndex = officeWeather?.hourly.time.findIndex(
+    (t) => t.startsWith(toLocalDateStr(today)) && parseInt(t.slice(11, 13)) === currentHour,
+  ) ?? -1;
+  const currentTemp =
+    currentTempIndex >= 0 && officeWeather?.hourly.temperature_2m
+      ? Math.round(officeWeather.hourly.temperature_2m[currentTempIndex])
+      : null;
+
+  // Data freshness
+  const minutesAgo = dataUpdatedAt
+    ? Math.max(0, Math.floor((Date.now() - dataUpdatedAt) / 60_000))
+    : null;
+  const isFresh = minutesAgo !== null && minutesAgo < WEATHER_CACHE_MINUTES;
+
   return (
     <div className="px-4 py-6 space-y-5">
       {/* Header */}
@@ -63,9 +82,23 @@ export function LeaveAdvisor() {
           <Navigation className="size-5 text-primary" />
           {copy.leaveAdvisor.title}
         </h1>
-        <Button size="icon-sm" variant="ghost" onClick={refetch} aria-label={copy.leaveAdvisor.refresh}>
-          <RefreshCw className="size-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          {currentTemp !== null && (
+            <span className="flex items-center gap-1 bg-muted px-2 py-0.5 rounded-full text-xs">
+              <Thermometer className="size-3 text-muted-foreground" />
+              {copy.leaveAdvisor.tempLabel(currentTemp)}
+            </span>
+          )}
+          {minutesAgo !== null && (
+            <span className={`flex items-center gap-1 text-[10px] ${isFresh ? 'text-green-600' : 'text-muted-foreground'}`}>
+              <span className={`size-1.5 rounded-full ${isFresh ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground'}`} />
+              {minutesAgo === 0 ? copy.weekly.updatedNow : copy.weekly.updatedAgo(minutesAgo)}
+            </span>
+          )}
+          <Button size="icon-sm" variant="ghost" onClick={refetch} aria-label={copy.leaveAdvisor.refresh}>
+            <RefreshCw className="size-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Loading */}
@@ -118,7 +151,11 @@ export function LeaveAdvisor() {
                 </span>
               )}
             </div>
+            <RideabilityBadge probability={rec.probability} />
           </div>
+
+          {/* Gear check panel */}
+          <GearCheckPanel probability={rec.probability} rainThreshold={config.rainThreshold} />
 
           {/* Scan window slots */}
           {rec.slots.length > 0 && (
