@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react';
-import { Crosshair } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Crosshair, X, ThumbsUp, Loader2 } from 'lucide-react';
 import L from 'leaflet';
 import { useReports } from '@/hooks/useReports';
+import { useConfirmReport } from '@/hooks/useConfirmReport';
+import { copy } from '@/constants/copy';
 import type { CommunityReport, ReportFilters } from '@/types/community';
 
 interface CommunityMapProps {
@@ -15,54 +17,50 @@ interface CommunityMapProps {
 const DEFAULT_CENTER: [number, number] = [3.147, 101.6958]; // KL
 const DEFAULT_ZOOM = 12;
 const RADIUS_METRES = 10_000;
+const FRESH_MS = 15 * 60 * 1000; // 15 min
 
-const MARKER_CONFIG: Record<string, { emoji: string; bg: string; glow: string }> = {
-  renyai:        { emoji: '🌦️', bg: '#3b82f6', glow: '#3b82f6' },
-  sederhana:     { emoji: '🌧️', bg: '#3b82f6', glow: '#3b82f6' },
-  lebat:         { emoji: '⛈️', bg: '#ef4444', glow: '#ef4444' },
-  banjir_kilat:  { emoji: '🌊', bg: '#ef4444', glow: '#ef4444' },
-  jalan_banjir:  { emoji: '🚧', bg: '#f97316', glow: '#f97316' },
-  pokok_tumbang: { emoji: '🌳', bg: '#f97316', glow: '#f97316' },
-  lain:          { emoji: '⚠️', bg: '#94a3b8', glow: '#94a3b8' },
+const MARKER_CONFIG: Record<string, { emoji: string; bg: string }> = {
+  renyai:        { emoji: '🌦️', bg: '#3b82f6' },
+  sederhana:     { emoji: '🌧️', bg: '#3b82f6' },
+  lebat:         { emoji: '⛈️', bg: '#ef4444' },
+  banjir_kilat:  { emoji: '🌊', bg: '#ef4444' },
+  jalan_banjir:  { emoji: '🚧', bg: '#f97316' },
+  pokok_tumbang: { emoji: '🌳', bg: '#f97316' },
+  lain:          { emoji: '⚠️', bg: '#94a3b8' },
 };
 
-function makeReportMarker(report: CommunityReport): L.Marker {
-  const cfg = MARKER_CONFIG[report.sub_type] ?? { emoji: '⚠️', bg: '#94a3b8', glow: '#94a3b8' };
+const SUBTYPE_LABEL: Record<string, string> = {
+  renyai:        copy.community.subTypeRenyai,
+  sederhana:     copy.community.subTypeSederhana,
+  lebat:         copy.community.subTypeLebat,
+  banjir_kilat:  copy.community.subTypeBanjirKilat,
+  jalan_banjir:  copy.community.subTypeJalanBanjir,
+  pokok_tumbang: copy.community.subTypePokokTumbang,
+  lain:          copy.community.subTypeLain,
+};
 
-  const icon = L.divIcon({
+function makeMarkerIcon(report: CommunityReport): L.DivIcon {
+  const cfg = MARKER_CONFIG[report.sub_type] ?? { emoji: '⚠️', bg: '#94a3b8' };
+  const isFresh = Date.now() - new Date(report.reported_at).getTime() < FRESH_MS;
+
+  return L.divIcon({
     className: '',
-    html: `<div style="
-      width:36px;height:36px;
-      background:${cfg.bg};
-      border-radius:50%;
-      border:2.5px solid rgba(255,255,255,0.35);
-      display:flex;align-items:center;justify-content:center;
-      font-size:16px;
-      box-shadow:0 0 12px ${cfg.glow}99,0 2px 6px rgba(0,0,0,0.5);
-      cursor:pointer;
-    ">${cfg.emoji}</div>`,
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
+    html: `
+      <div style="position:relative;width:40px;height:40px;">
+        ${isFresh ? `<div style="position:absolute;inset:-6px;background:${cfg.bg}33;border-radius:50%;animation:report-ping 2s cubic-bezier(0,0,0.2,1) infinite;"></div>` : ''}
+        <div style="
+          position:relative;width:40px;height:40px;
+          background:${cfg.bg};border-radius:50%;
+          border:2.5px solid white;
+          display:flex;align-items:center;justify-content:center;
+          font-size:18px;
+          box-shadow:0 2px 8px rgba(0,0,0,0.2);
+          cursor:pointer;
+        ">${cfg.emoji}</div>
+      </div>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
   });
-
-  const minutesAgo = Math.max(
-    1,
-    Math.floor((Date.now() - new Date(report.reported_at).getTime()) / 60_000),
-  );
-  const timeLabel =
-    minutesAgo < 60 ? `${minutesAgo} min lalu` : `${Math.floor(minutesAgo / 60)} jam lalu`;
-  const confirmsLine = report.confirms > 0
-    ? `<span style="color:#94a3b8;font-size:11px">${report.confirms} sahkan</span>`
-    : '';
-
-  return L.marker([report.lat, report.lng], { icon }).bindPopup(
-    `<div style="font-size:13px;line-height:1.5;background:#1e293b;color:#e2e8f0;border-radius:8px;padding:8px 10px;min-width:120px;">
-      <div style="font-weight:700;margin-bottom:2px">${cfg.emoji} ${report.sub_type.replace(/_/g, ' ')}</div>
-      <div style="color:#94a3b8;font-size:11px">${report.state} · ${timeLabel}</div>
-      ${confirmsLine}
-    </div>`,
-    { maxWidth: 180, className: 'dark-popup' },
-  );
 }
 
 function makeUserMarker(): L.Marker {
@@ -87,6 +85,14 @@ export function CommunityMap({ filters, userLat, userLng, height, focusTarget }:
   const radiusCircleRef = useRef<L.Circle | null>(null);
 
   const { data: reports } = useReports(filters, userLat, userLng);
+  const { mutate: confirmReport, isPending: isConfirming } = useConfirmReport();
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Derive live report data so confirms count updates after refetch
+  const selectedReport = selectedId
+    ? (reports?.find(r => r.id === selectedId) ?? null)
+    : null;
 
   // Initialise map once
   useEffect(() => {
@@ -106,13 +112,14 @@ export function CommunityMap({ filters, userLat, userLng, height, focusTarget }:
       attribution: '© <a href="https://carto.com/">CARTO</a>',
     }).addTo(map);
 
-    // Minimal attribution — required by terms, styled to be unobtrusive
     L.control.attribution({ position: 'bottomleft', prefix: false }).addTo(map);
-
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     markersRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
+
+    // Close selected pin when tapping map background
+    map.on('click', () => setSelectedId(null));
 
     return () => {
       map.remove();
@@ -164,7 +171,14 @@ export function CommunityMap({ filters, userLat, userLng, height, focusTarget }:
   useEffect(() => {
     if (!markersRef.current) return;
     markersRef.current.clearLayers();
-    reports?.forEach((r) => makeReportMarker(r).addTo(markersRef.current!));
+    reports?.forEach((report) => {
+      const marker = L.marker([report.lat, report.lng], { icon: makeMarkerIcon(report) });
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        setSelectedId(report.id);
+      });
+      marker.addTo(markersRef.current!);
+    });
   }, [reports]);
 
   function recenter() {
@@ -173,6 +187,14 @@ export function CommunityMap({ filters, userLat, userLng, height, focusTarget }:
       userLat != null && userLng != null ? [userLat, userLng] : DEFAULT_CENTER;
     mapRef.current.setView(center, DEFAULT_ZOOM);
   }
+
+  const cfg = selectedReport
+    ? (MARKER_CONFIG[selectedReport.sub_type] ?? { emoji: '⚠️', bg: '#94a3b8' })
+    : null;
+
+  const minutesAgo = selectedReport
+    ? Math.max(1, Math.floor((Date.now() - new Date(selectedReport.reported_at).getTime()) / 60_000))
+    : 0;
 
   return (
     <>
@@ -213,9 +235,10 @@ export function CommunityMap({ filters, userLat, userLng, height, focusTarget }:
         .leaflet-control-zoom-out:active {
           transform: scale(0.95) !important;
         }
-        .dark-popup .leaflet-popup-content-wrapper { background:transparent; box-shadow:none; padding:0; }
-        .dark-popup .leaflet-popup-content { margin:0; }
-        .dark-popup .leaflet-popup-tip { background:#1e293b; }
+        @keyframes report-ping {
+          0%   { transform: scale(1); opacity: 0.7; }
+          100% { transform: scale(2); opacity: 0; }
+        }
       `}</style>
 
       <div style={{ position: 'relative', height, width: '100%', transition: 'height 0.35s ease' }}>
@@ -230,6 +253,57 @@ export function CommunityMap({ filters, userLat, userLng, height, focusTarget }:
         >
           <Crosshair className="size-3.5 text-gray-600" />
         </button>
+
+        {/* Selected report card */}
+        {selectedReport && cfg && (
+          <div
+            style={{ position: 'absolute', bottom: 12, left: 12, right: 12, zIndex: 1000 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+              {/* Info row */}
+              <div className="flex items-center gap-3 px-4 py-3">
+                <div
+                  className="size-10 rounded-full flex items-center justify-center text-lg shrink-0"
+                  style={{ background: cfg.bg + '22' }}
+                >
+                  {cfg.emoji}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold leading-tight">
+                    {SUBTYPE_LABEL[selectedReport.sub_type] ?? selectedReport.sub_type}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {selectedReport.state} · {copy.community.reportedAgo(minutesAgo)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedId(null)}
+                  className="size-6 flex items-center justify-center rounded-full bg-gray-100 text-gray-400 shrink-0"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+
+              {/* Confirm row */}
+              <div className="border-t border-gray-100 px-4 py-2.5">
+                <button
+                  onClick={() => confirmReport(selectedReport.id)}
+                  disabled={isConfirming}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+                  style={{ background: cfg.bg + '18', color: cfg.bg }}
+                >
+                  {isConfirming
+                    ? <Loader2 className="size-3.5 animate-spin" />
+                    : <ThumbsUp className="size-3.5" />}
+                  {selectedReport.confirms > 0
+                    ? `${copy.community.confirmsCount(selectedReport.confirms)} · ${copy.community.confirmButton}`
+                    : copy.community.confirmButton}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
