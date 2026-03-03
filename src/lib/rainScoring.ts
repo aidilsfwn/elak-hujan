@@ -1,6 +1,16 @@
 import type { WeatherData } from '@/types/weather';
 import type { UserConfig } from '@/types/config';
 
+/** Returns the rain probability for the current local hour, or null if not found. */
+export function getCurrentHourProb(weather: WeatherData): number | null {
+  const now = new Date();
+  const dateStr = toLocalDateStr(now);
+  const hour = now.getHours();
+  const timeKey = `${dateStr}T${String(hour).padStart(2, '0')}:00`;
+  const idx = weather.hourly.time.indexOf(timeKey);
+  return idx >= 0 ? weather.hourly.precipitation_probability[idx] : null;
+}
+
 export interface ScoredDay {
   date: Date;
   dateStr: string;   // "2026-02-24"

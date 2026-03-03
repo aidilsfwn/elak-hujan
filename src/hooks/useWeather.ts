@@ -19,6 +19,9 @@ export function useWeather() {
     staleTime: WEATHER_STALE_MS,
   });
 
+  const timestamps = [homeQuery.dataUpdatedAt, officeQuery.dataUpdatedAt].filter((t) => t > 0);
+  const dataUpdatedAt = timestamps.length > 0 ? Math.min(...timestamps) : null;
+
   return {
     homeWeather: homeQuery.data,
     officeWeather: officeQuery.data,
@@ -26,5 +29,6 @@ export function useWeather() {
     isError: homeQuery.isError || officeQuery.isError,
     isFetching: homeQuery.isFetching || officeQuery.isFetching,
     refetch: () => { homeQuery.refetch(); officeQuery.refetch(); },
+    dataUpdatedAt,
   };
 }

@@ -7,7 +7,7 @@ export async function fetchHourlyForecast(lat: number, lon: number): Promise<Wea
   const params = new URLSearchParams({
     latitude: lat.toString(),
     longitude: lon.toString(),
-    hourly: 'precipitation_probability',
+    hourly: 'precipitation_probability,temperature_2m',
     timezone: 'Asia/Kuala_Lumpur',
     forecast_days: '7',
   });

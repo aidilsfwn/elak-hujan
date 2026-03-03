@@ -75,7 +75,10 @@ export const copy = {
     sectionTitle: "Tentang",
     dataSourcesLabel: "Sumber Data",
     sources: [
-      { name: "Open-Meteo", desc: "Ramalan cuaca jam-per-jam (open-meteo.com)" },
+      {
+        name: "Open-Meteo",
+        desc: "Ramalan cuaca jam-per-jam (open-meteo.com)",
+      },
       { name: "MET Malaysia / data.gov.my", desc: "Amaran cuaca rasmi" },
       { name: "OpenStreetMap Nominatim", desc: "Carian & koordinat lokasi" },
     ],
@@ -87,7 +90,8 @@ export const copy = {
       "Nilai yang dipaparkan ialah kebarangkalian hujan (%), bukan jumlah hujan sebenar (mm). Nilai 40% bermaksud model menjangka peluang 40% hujan berlaku — bukan intensiti.",
       "Amaran MET Malaysia adalah pada peringkat negeri sahaja.",
     ],
-    disclaimer: "Gunakan sebagai panduan perancangan sahaja. Semak ramalan terkini sebelum bertolak.",
+    disclaimer:
+      "Gunakan sebagai panduan perancangan sahaja. Semak ramalan terkini sebelum bertolak.",
     tagline: "kita merancang, tuhan menentukan :p",
     credit: "vibe-coded by aidil safwan",
     github: "https://github.com/aidilsfwn",
@@ -99,7 +103,7 @@ export const copy = {
     subNavFeed: "Suapan",
     fab: "Laporkan",
     pageSubtitle: "Kongsi keadaan hujan & bahaya di kawasan anda",
-    mapTip: "Ketik laporan untuk pergi ke lokasinya",
+    mapTip: "Tekan laporan untuk ke pin",
     feedTitle: "Laporan Terkini",
     feedLive: "Langsung",
 
@@ -122,7 +126,8 @@ export const copy = {
     submitButton: "Hantar Laporan",
     submitting: "Menghantar...",
     submitSuccess: "Laporan berjaya dihantar!",
-    submitRateLimited: "Sila tunggu 30 minit sebelum laporan seterusnya di kawasan ini.",
+    submitRateLimited:
+      "Sila tunggu 30 minit sebelum laporan seterusnya di kawasan ini.",
     submitError: "Gagal menghantar. Cuba lagi.",
 
     confirmButton: "Saya pun!",
@@ -137,13 +142,17 @@ export const copy = {
     subTypeJalanBanjir: "Jalan Banjir",
     subTypePokokTumbang: "Pokok Tumbang",
     subTypeLain: "Lain-lain",
+    subTypeJalanLicin: "Jalan Licin",
+    subTypeAnginKuat: "Angin Kuat",
 
-    emptyFeed: "Tiada laporan dalam kawasan ini.",
+    emptyFeed:
+      "Tiada laporan lagi di sini — tekan 'Laporkan' untuk kongsikan keadaan! 🌧️",
     loadingFeed: "Memuatkan laporan...",
     errorFeed: "Gagal memuatkan laporan. Cuba lagi.",
     reportedAgo: (mins: number) =>
       mins < 60 ? `${mins} min lalu` : `${Math.floor(mins / 60)} jam lalu`,
     confirmsCount: (n: number) => `${n} sahkan`,
+    locationFallback: "Lokasi anggaran (berdasarkan lokasi rumah)",
   },
 
   errors: {
@@ -160,6 +169,15 @@ export const copy = {
     staleData: "Data tidak dapat dikemas kini — menunjukkan ramalan lama.",
     morning: "Pagi",
     evening: "Petang",
+    updatedNow: "Baru dikemas kini",
+    updatedAgo: (m: number) => `Dikemas kini ${m} min lalu`,
+    nowWidget: {
+      title: "Sekarang",
+      safe: "Selamat Keluar",
+      caution: "Berhati-hati",
+      wait: "Tunggu Dahulu",
+      probLabel: (p: number) => `${p}% hujan`,
+    },
   },
 
   leaveAdvisor: {
@@ -174,6 +192,30 @@ export const copy = {
     loading: "Mengira masa terbaik...",
     noOfficeWeather: "Data cuaca pejabat tidak tersedia.",
     metForecastTitle: "Ramalan MET Hari Ini",
+    rideabilityLabel: "Skor Perjalanan",
+    rideabilityScores: {
+      selamat: "SELAMAT",
+      baik: "BAIK",
+      berhatiHati: "BERHATI-HATI",
+      berisiko: "BERISIKO",
+      bahaya: "BAHAYA",
+    },
+    gearCheck: {
+      title: "Tips Perjalanan",
+      tips: {
+        low: ["Cuaca baik — selamat bertolak! 🌤️"],
+        medium: [
+          "Sediakan baju hujan sebelum bertolak",
+          "Berhati-hati di selekoh basah",
+        ],
+        high: [
+          "Pakai baju hujan",
+          "Kurangkan kelajuan",
+          "Elak kawasan rendah & banjir",
+        ],
+      },
+    },
+    tempLabel: (t: number) => `${t}°C`,
   },
 
   dayDetail: {
@@ -186,5 +228,6 @@ export const copy = {
     legendEvening: "Petang",
     homeNote: "Lokasi Rumah",
     officeNote: "Lokasi Pejabat",
+    bestSlot: "Masa terbaik balik",
   },
 };

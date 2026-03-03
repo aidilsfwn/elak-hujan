@@ -1,6 +1,6 @@
 export type ReportCategory = 'hujan' | 'bahaya';
 export type HujanSubType = 'renyai' | 'sederhana' | 'lebat';
-export type BahayaSubType = 'banjir_kilat' | 'jalan_banjir' | 'pokok_tumbang' | 'lain';
+export type BahayaSubType = 'banjir_kilat' | 'jalan_banjir' | 'pokok_tumbang' | 'lain' | 'jalan_licin' | 'angin_kuat';
 export type ReportSubType = HujanSubType | BahayaSubType;
 
 export interface CommunityReport {
