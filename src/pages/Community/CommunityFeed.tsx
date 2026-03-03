@@ -10,12 +10,17 @@ interface CommunityFeedProps {
   filters: ReportFilters;
   onFiltersChange: (filters: ReportFilters) => void;
   onReportSelect: (report: CommunityReport) => void;
+  onReset?: () => void;
   userLat?: number;
   userLng?: number;
 }
 
-export function CommunityFeed({ filters, onFiltersChange, onReportSelect, userLat, userLng }: CommunityFeedProps) {
-  const { data: reports, isLoading, isError, refetch } = useReports(filters, userLat, userLng);
+export function CommunityFeed({ filters, onFiltersChange, onReportSelect, onReset, userLat, userLng }: CommunityFeedProps) {
+  const { data: reports, isLoading, isError, refetch, dataUpdatedAt } = useReports(filters, userLat, userLng);
+
+  const minutesAgo = dataUpdatedAt
+    ? Math.max(0, Math.floor((Date.now() - dataUpdatedAt) / 60_000))
+    : null;
 
   return (
     <div className="flex flex-col h-full">
@@ -24,9 +29,15 @@ export function CommunityFeed({ filters, onFiltersChange, onReportSelect, userLa
         <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="size-1.5 rounded-full bg-green-500 animate-pulse" />
           {copy.community.feedLive}
+          {minutesAgo !== null && (
+            <span className="text-muted-foreground/70">
+              {' · '}
+              {minutesAgo === 0 ? 'baru' : `${minutesAgo} min lalu`}
+            </span>
+          )}
         </span>
       </div>
-      <FilterBar filters={filters} onChange={onFiltersChange} />
+      <FilterBar filters={filters} onChange={onFiltersChange} onReset={onReset} />
 
       <div className="flex-1 overflow-y-auto">
         {isLoading && (

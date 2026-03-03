@@ -34,12 +34,15 @@ const BAHAYA_SUBTYPES: { value: BahayaSubType; emoji: string; label: string }[] 
   { value: 'banjir_kilat',  emoji: '🌊', label: copy.community.subTypeBanjirKilat },
   { value: 'jalan_banjir',  emoji: '🚧', label: copy.community.subTypeJalanBanjir },
   { value: 'pokok_tumbang', emoji: '🌳', label: copy.community.subTypePokokTumbang },
+  { value: 'jalan_licin',   emoji: '🟡', label: copy.community.subTypeJalanLicin },
+  { value: 'angin_kuat',    emoji: '💨', label: copy.community.subTypeAnginKuat },
   { value: 'lain',          emoji: '⚠️', label: copy.community.subTypeLain },
 ];
 
 const SUBTYPE_EMOJI: Record<string, string> = {
   renyai: '🌦️', sederhana: '🌧️', lebat: '⛈️',
   banjir_kilat: '🌊', jalan_banjir: '🚧', pokok_tumbang: '🌳', lain: '⚠️',
+  jalan_licin: '🟡', angin_kuat: '💨',
 };
 
 const SUBTYPE_LABEL: Record<string, string> = {
@@ -50,6 +53,8 @@ const SUBTYPE_LABEL: Record<string, string> = {
   jalan_banjir: copy.community.subTypeJalanBanjir,
   pokok_tumbang: copy.community.subTypePokokTumbang,
   lain: copy.community.subTypeLain,
+  jalan_licin: copy.community.subTypeJalanLicin,
+  angin_kuat: copy.community.subTypeAnginKuat,
 };
 
 async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
@@ -104,6 +109,7 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
   const [lng, setLng] = useState<number | null>(null);
   const [state, setState] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
+  const [locSource, setLocSource] = useState<'gps' | 'config' | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -114,6 +120,7 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
       setLat(null);
       setLng(null);
       setState(null);
+      setLocSource(null);
       setErrorMsg(null);
     }
   }, [open]);
@@ -128,6 +135,7 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
         setLng(longitude);
         const detected = await reverseGeocode(latitude, longitude);
         setState(detected ?? config?.homeLocation.state ?? null);
+        setLocSource('gps');
         setLocating(false);
       },
       () => {
@@ -135,6 +143,7 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
           setLat(config.homeLocation.lat);
           setLng(config.homeLocation.lon);
           setState(config.homeLocation.state);
+          setLocSource('config');
         }
         setLocating(false);
       },
@@ -260,7 +269,11 @@ export function ReportSheet({ open, onOpenChange, onSuccess }: ReportSheetProps)
               ) : (
                 <div>
                   <p className="text-sm font-medium">{state ?? '—'}</p>
-                  <p className="text-xs text-muted-foreground">Lokasi semasa</p>
+                  <p className="text-xs text-muted-foreground">
+                    {locSource === 'config'
+                      ? copy.community.locationFallback
+                      : 'Lokasi semasa'}
+                  </p>
                 </div>
               )}
             </div>

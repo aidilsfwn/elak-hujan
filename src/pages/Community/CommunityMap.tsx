@@ -3,6 +3,7 @@ import { Crosshair, X, ThumbsUp, Loader2 } from 'lucide-react';
 import L from 'leaflet';
 import { useReports } from '@/hooks/useReports';
 import { useConfirmReport } from '@/hooks/useConfirmReport';
+import { MARKER_CONFIG, SUBTYPE_LABEL } from '@/constants/communityConfig';
 import { copy } from '@/constants/copy';
 import type { CommunityReport, ReportFilters } from '@/types/community';
 
@@ -18,26 +19,6 @@ const DEFAULT_CENTER: [number, number] = [3.147, 101.6958]; // KL
 const DEFAULT_ZOOM = 12;
 const RADIUS_METRES = 10_000;
 const FRESH_MS = 15 * 60 * 1000; // 15 min
-
-const MARKER_CONFIG: Record<string, { emoji: string; bg: string }> = {
-  renyai:        { emoji: '🌦️', bg: '#3b82f6' },
-  sederhana:     { emoji: '🌧️', bg: '#3b82f6' },
-  lebat:         { emoji: '⛈️', bg: '#ef4444' },
-  banjir_kilat:  { emoji: '🌊', bg: '#ef4444' },
-  jalan_banjir:  { emoji: '🚧', bg: '#f97316' },
-  pokok_tumbang: { emoji: '🌳', bg: '#f97316' },
-  lain:          { emoji: '⚠️', bg: '#94a3b8' },
-};
-
-const SUBTYPE_LABEL: Record<string, string> = {
-  renyai:        copy.community.subTypeRenyai,
-  sederhana:     copy.community.subTypeSederhana,
-  lebat:         copy.community.subTypeLebat,
-  banjir_kilat:  copy.community.subTypeBanjirKilat,
-  jalan_banjir:  copy.community.subTypeJalanBanjir,
-  pokok_tumbang: copy.community.subTypePokokTumbang,
-  lain:          copy.community.subTypeLain,
-};
 
 function makeMarkerIcon(report: CommunityReport): L.DivIcon {
   const cfg = MARKER_CONFIG[report.sub_type] ?? { emoji: '⚠️', bg: '#94a3b8' };

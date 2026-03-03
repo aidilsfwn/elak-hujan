@@ -82,6 +82,7 @@ export function Community() {
           filters={filters}
           onFiltersChange={setFilters}
           onReportSelect={handleReportSelect}
+          onReset={() => setFilters(DEFAULT_FILTERS)}
           userLat={userLat}
           userLng={userLng}
         />

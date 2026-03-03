@@ -13,6 +13,7 @@ import type { ReportFilters } from '@/types/community';
 interface FilterBarProps {
   filters: ReportFilters;
   onChange: (filters: ReportFilters) => void;
+  onReset?: () => void;
 }
 
 const JENIS_OPTIONS = [
@@ -33,8 +34,9 @@ const chip = (active: boolean) =>
     active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
   );
 
-export function FilterBar({ filters, onChange }: FilterBarProps) {
+export function FilterBar({ filters, onChange, onReset }: FilterBarProps) {
   const stateValue = filters.lokasi === 'berhampiran' ? '' : filters.lokasi;
+  const isFiltered = filters.jenis !== 'semua' || filters.masa !== 60 || filters.lokasi !== 'berhampiran';
 
   return (
     <div className="flex flex-col gap-2 px-4 py-3 border-b bg-background">
@@ -73,7 +75,7 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
       {/* Lokasi */}
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground w-12 shrink-0">{copy.community.filterLokasi}</span>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-1">
           <button
             onClick={() => onChange({ ...filters, lokasi: 'berhampiran' })}
             className={chip(filters.lokasi === 'berhampiran')}
@@ -104,6 +106,15 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
               ))}
             </SelectContent>
           </Select>
+
+          {isFiltered && onReset && (
+            <button
+              onClick={onReset}
+              className="h-8 px-3 rounded-full text-xs font-medium bg-destructive/10 text-destructive shrink-0"
+            >
+              Reset
+            </button>
+          )}
         </div>
       </div>
     </div>
