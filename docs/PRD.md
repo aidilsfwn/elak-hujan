@@ -8,7 +8,7 @@
 
 ## 1. Overview
 
-ElakHujan is a mobile-first React PWA that helps scooter commuters in Malaysia plan their office days and commute timing around rain. It combines a weekly planning view, a daily leave-time advisor, and a live community hazard feed — all personalised through a local configuration setup. User preferences are stored in the browser's localStorage. A Netlify Edge Function proxy forwards MET Malaysia API requests server-side (to avoid CORS and keep the API token out of the browser). Community reports are stored in a Supabase free-tier Postgres database; no user accounts or login are required.
+ElakHujan is a mobile-first React PWA that helps scooter commuters in Malaysia plan their office days and commute timing around rain. It combines a weekly planning view, a daily leave-time advisor, and contextual rideability signals — all personalised through a local configuration setup. User preferences are stored in the browser's localStorage. A Netlify Edge Function proxy forwards MET Malaysia API requests server-side (to avoid CORS and keep the API token out of the browser).
 
 ---
 
@@ -30,8 +30,7 @@ Malaysian tropical weather is unpredictable and makes scooter commuting uncomfor
 | G3 | Be fully configurable per user with no backend or login required |
 | G4 | Be shareable — any friend can open the app and set it up for their own commute |
 | G5 | All UI copy and labels in Bahasa Melayu as the primary language |
-| G6 | Surface real-time hazard reports from the community to complement NWP forecast data |
-| G7 | Translate rain probability into actionable signals: rideability score, gear tips, temperature context |
+| G6 | Translate rain probability into actionable signals: rideability score, gear tips, temperature context |
 
 ---
 
@@ -85,19 +84,7 @@ Malaysian tropical weather is unpredictable and makes scooter commuting uncomfor
 - Uses the **office location** as the weather reference point
 - Displays a **MET Malaysia official daily forecast** section (Pagi / Petang / Malam) sourced from the `FORECAST/GENERAL` dataset (`FGM`/`FGA`/`FGN` datatypes), showing today's qualitative weather conditions per period as published by MET Malaysia — supplementary to the Open-Meteo hourly probability forecast
 
-### 6.4 Community Hazard Reports
-> *"As a user, I want to see what other riders are reporting near me right now — rain, flooding, fallen trees, slippery roads — because model forecasts miss hyperlocal events."*
-
-- Any user can submit an anonymous rain or hazard report pinned to their GPS location
-- Reports expire after 2 hours; users can confirm a report ("Saya pun!") to keep it relevant
-- Reports are displayed on a Leaflet map with colour-coded pins and in a scrollable feed
-- **Report categories:** Hujan (Renyai, Sederhana, Lebat) and Bahaya (Banjir Kilat, Jalan Banjir, Pokok Tumbang, Jalan Licin, Angin Kuat, Lain-lain)
-- The **BottomNav Komuniti tab** shows a live count badge for reports in the user's home state
-- The feed shows a live timestamp ("Langsung · dikemas kini X min lalu")
-- Filter by jenis, masa, and lokasi (berhampiran / negeri); a **Reset** chip appears when filters differ from defaults
-- When GPS is unavailable the report falls back to the user's home location with a visible note ("Lokasi anggaran (berdasarkan lokasi rumah)")
-
-### 6.5 Onboarding & Settings
+### 6.4 Onboarding & Settings
 > *"As a new user, I want a guided setup so I can configure my commute details before using the app."*
 
 - First-launch onboarding wizard with the following steps:
@@ -118,7 +105,6 @@ Malaysian tropical weather is unpredictable and makes scooter commuting uncomfor
 | **Weekly View** | Rolling 5-weekday cards showing morning + evening rain risk. Recommended days highlighted. NowWidget shows current-hour probability. Data freshness indicator in header. Tapping a card navigates to Day Detail. |
 | **Day Detail View** | Hourly rain forecast for a selected day. Commute windows highlighted as bands. Primary dot marks the best evening departure slot. |
 | **Leave Now Advisor** | Contextual panel showing rolling forecast, recommended leave time, Rideability Score, current temperature chip, data freshness chip, collapsible gear tips, and MET official daily forecast. Visible within 2 hours before evening commute window; also accessible from BottomNav. |
-| **Community** | Leaflet map with colour-coded hazard pins + live scrollable feed. FAB for submitting a new report. Filter bar with type/time/location controls and a reset chip. BottomNav badge shows report count. |
 | **Onboarding Wizard** | Step-by-step first-launch setup flow. |
 | **Settings Page** | Full config editor — locations, commute windows, office day preferences, rain threshold. |
 
@@ -135,8 +121,6 @@ Malaysian tropical weather is unpredictable and makes scooter commuting uncomfor
 | Daily forecast API | MET Malaysia API — api.met.gov.my (free with registration) | Official daily forecast (`FORECAST/GENERAL`, datatypes `FGM`/`FGA`/`FGN`); proxied via Netlify Edge Function to avoid CORS and keep token server-side |
 | Warnings API | data.gov.my Weather API | Official source for active weather warnings, displayed as dismissible banner |
 | API proxy | Netlify Edge Function (`netlify/edge-functions/met-proxy.ts`) | Forwards MET API calls server-side; `MET_TOKEN` never reaches the browser |
-| Community database | Supabase (free tier) | Postgres with row-level security; anonymous reports via device hash rate limiting |
-| Map rendering | Leaflet + react-leaflet | Lightweight, works offline once tiles cached |
 | Location input | Nominatim (OpenStreetMap geocoding) | Free, no API key required |
 | Data fetching | TanStack Query v5 | Caching, stale-while-revalidate, `dataUpdatedAt` for freshness indicators |
 | Localisation | Bahasa Melayu (primary) | Local-first product; all UI strings in `src/constants/copy.ts` |
@@ -204,25 +188,7 @@ Malaysian tropical weather is unpredictable and makes scooter commuting uncomfor
 
 ---
 
-## 11. Community Reports — Data Model
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | uuid | Primary key |
-| `lat` / `lng` | float | Report coordinates |
-| `state` | text | Malaysian state (16 states + 3 FTs) |
-| `category` | enum | `hujan` \| `bahaya` |
-| `sub_type` | enum | See list below |
-| `reported_at` | timestamptz | Submission time |
-| `expires_at` | timestamptz | `reported_at + 2 hours` |
-| `confirms` | int | Peer confirmations count |
-| `device_hash` | text (hashed) | Rate-limiting: max 1 report per state per 30 min per device |
-
-**Sub-types:** `renyai`, `sederhana`, `lebat` (Hujan) · `banjir_kilat`, `jalan_banjir`, `pokok_tumbang`, `jalan_licin`, `angin_kuat`, `lain` (Bahaya)
-
----
-
-## 12. Success Metrics (Personal v1)
+## 11. Success Metrics (Personal v1)
 
 - App is usable end-to-end within 1 weekend of development
 - Aidil uses it for at least 4 consecutive weeks
@@ -230,24 +196,22 @@ Malaysian tropical weather is unpredictable and makes scooter commuting uncomfor
 
 ---
 
-## 13. Open Questions
+## 12. Open Questions
 
 | # | Question |
 |---|----------|
 | OQ1 | ~~Should weather be fetched for home location, office location, or both?~~ **Resolved: Both.** |
 | OQ2 | ~~What rain probability threshold counts as "risky"?~~ **Resolved: 40% default, user-configurable.** |
 | OQ3 | ~~Should confirmed office days sync to a calendar or remain app-only?~~ **Superseded: confirmed office day feature removed. DayCard taps now navigate directly to Day Detail.** |
-| OQ4 | ~~Telegram notifications?~~ **Deferred to future work. See Section 15.** |
-| OQ5 | ~~Crowdsourced rain & hazard reports?~~ **Resolved: implemented as the Komuniti feature (Phase 6–7).** |
+| OQ4 | ~~Telegram notifications?~~ **Deferred to future work. See Section 13.** |
 
 ---
 
-## 15. Out of Scope / Future Work
+## 13. Out of Scope / Future Work
 
 - Multi-city or multi-user shared dashboard
 - Historical rain pattern analysis
 - Integration with Google Calendar for office day confirmation
 - **Telegram notifications** — morning summary on confirmed office days (rain risk for both commute windows) and an evening nudge with the best leave time recommendation, delivered via a Netlify serverless function holding the bot token; each user stores only their own Chat ID locally
 - **User accounts & cloud sync** — allow users to sign in and have their config (locations, commute windows, preferences) synced across devices, rather than being tied to a single browser's localStorage
-- **Push alerts from community** — proactively notify riders in the same area when a high-severity hazard (e.g. banjir kilat, pokok tumbang) is reported nearby, without requiring the app to be open
-- **Radar nowcast layer** — overlay MET Malaysia `OBSERVATION/RAINS` data on the community map once elevated API access is obtained, giving a real-time precipitation intensity layer
+- **Radar nowcast layer** — overlay MET Malaysia `OBSERVATION/RAINS` data once elevated API access is obtained, giving a real-time precipitation intensity layer in the app

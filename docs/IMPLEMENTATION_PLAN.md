@@ -13,7 +13,6 @@
 | 3 | Day detail view + leave time advisor | ✅ Complete |
 | 4 | MET Malaysia warning banner | ✅ Complete |
 | 5 | Polish, testing, PWA manifest & deployment | ✅ Complete (service worker + icon sizes deferred) |
-| 6 | Komuniti — community rain/hazard reporting feed | ⏳ Next |
 | — | Telegram bot + notifications | 🔄 Deferred (post-v1) |
 
 ---
@@ -244,140 +243,7 @@ Active MET Malaysia warnings appear prominently and can be dismissed.
 ### Deliverable
 Production-deployed at elak-hujan.aidilsfwn.dev ✅
 
-> **Deferred (post-Phase 6):** Service worker / offline shell (vite-plugin-pwa), separate icon files per size.
-
----
-
-## Phase 6 — Komuniti (Community Rain & Hazard Feed)
-
-### Goals
-- Users can anonymously report rain or road hazards at their current location
-- Reports are visible on a map and as a filterable feed
-- Community can confirm others' reports
-- Zero additional infrastructure cost (Supabase free tier)
-
-### Background decisions
-- **Anonymous** — no registration required; rate-limited by device fingerprint hash
-- **Backend** — Supabase free tier (PostgreSQL + PostGIS for geospatial queries + RPC for rate limiting)
-- **Map** — Leaflet.js + OpenStreetMap, CartoDB Positron tiles (all free, no API keys)
-- **Report categories** — Hujan (rain, pick intensity) or Bahaya (hazard, pick type)
-- **Confirms** — "Saya pun!" button bumps a `confirms` count via server-side RPC (atomic)
-- **Expiry** — Hujan auto-expires after 2 hours; Bahaya after 6 hours
-
-### Report data model
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `id` | UUID | Primary key |
-| `geom` | GEOGRAPHY(Point) | PostGIS point for radius queries |
-| `lat` / `lng` | DOUBLE PRECISION | Stored alongside geom for easy access |
-| `state` | TEXT | Malaysian state (matches MALAYSIAN_STATES) |
-| `category` | TEXT | `'hujan'` or `'bahaya'` |
-| `sub_type` | TEXT | `'renyai'`/`'sederhana'`/`'lebat'` or `'banjir_kilat'`/`'jalan_banjir'`/`'pokok_tumbang'`/`'lain'` |
-| `reported_at` | TIMESTAMPTZ | Auto-set on insert |
-| `expires_at` | TIMESTAMPTZ | `+2h` for hujan, `+6h` for bahaya |
-| `device_hash` | TEXT | SHA-256 of browser fingerprint — for rate limiting only, never exposed to client |
-| `confirms` | INTEGER | Community confirmations count |
-
-### Tasks
-
-**6.0 Supabase setup (one-time, manual)**
-- Create free project at supabase.com
-- Enable PostGIS and pg_cron extensions
-- Run schema SQL (table + indexes + RLS + pg_cron cleanup job + 2 RPC functions + public view)
-- Add `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` to `.env`
-
-Schema highlights:
-- RLS: anyone can SELECT non-expired rows; INSERT only via `create_community_report` RPC (enforces rate limit server-side)
-- `create_community_report` RPC: checks device_hash — max 1 report per device per 30min within 5km radius; returns new `id`
-- `confirm_community_report` RPC: atomic `UPDATE confirms = confirms + 1`
-- `community_reports_public` view: excludes `device_hash` column — always query this, never the raw table
-- pg_cron job: `DELETE FROM community_reports WHERE expires_at < NOW()` every 15 minutes
-
-**6.1 npm packages**
-```bash
-npm install @supabase/supabase-js leaflet @types/leaflet
-npx shadcn add sheet
-```
-
-**6.2 New types** — `src/types/community.ts`
-- `ReportCategory`, `HujanSubType`, `BahayaSubType`, `ReportSubType`
-- `CommunityReport` interface (matches public view columns)
-- `ReportFilters` interface (`jenis`, `masa`, `lokasi`)
-
-**6.3 Supabase client** — `src/services/supabase.ts`
-- `createClient(VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)`
-
-**6.4 Community reports service** — `src/services/communityReports.ts`
-- `fetchReports(filters, userLat?, userLng?)` — queries `community_reports_public` view; filters by state OR `ST_DWithin` 25km for "berhampiran" mode
-- `submitReport(data)` — calls `create_community_report` RPC; handles `rate_limited` exception
-- `confirmReport(reportId)` — calls `confirm_community_report` RPC
-
-**6.5 Device hash hook** — `src/hooks/useDeviceHash.ts`
-- Hash `userAgent + screenWidth + screenHeight + timezone` via `crypto.subtle.digest('SHA-256')`
-- Persist in localStorage as `elakhujan_device_id` for stability across sessions
-- Returns stable hex string
-
-**6.6 TanStack Query hooks**
-- `src/hooks/useReports.ts` — `staleTime: 2min`, `refetchInterval: 2min`, `refetchIntervalInBackground: false`
-- `src/hooks/useSubmitReport.ts` — mutation → `invalidateQueries(['community_reports'])` on success
-- `src/hooks/useConfirmReport.ts` — mutation → `invalidateQueries(['community_reports'])` on success
-
-**6.7 BM copy** — add `community` section to `src/constants/copy.ts`
-- Tab label, sub-nav labels, all filter labels, category/sub-type labels, sheet copy, toast messages
-
-**6.8 Leaflet CSS** — add to `src/index.css`
-- `@import "leaflet/dist/leaflet.css";` at top, before `@import "tailwindcss"`
-
-**6.9 Community page components** — all in `src/pages/Community/`
-
-| File | Responsibility |
-|------|---------------|
-| `FilterBar.tsx` | Jenis / Masa / Lokasi filter chips |
-| `FeedCard.tsx` | Report row: icon, sub_type label, state, time ago, confirms, "Saya pun!" button |
-| `CommunityFeed.tsx` | FilterBar + scrollable FeedCard list |
-| `CommunityMap.tsx` | Leaflet map, CartoDB Positron tiles, `L.divIcon()` markers coloured by category/intensity |
-| `ReportSheet.tsx` | shadcn Sheet (side="bottom"), 3-step: category → sub_type → location confirm → submit |
-| `index.tsx` | Sub-nav Peta/Suapan, user geolocation state, floating "Laporkan" FAB, wires ReportSheet |
-
-**6.10 Routing + nav updates**
-- `src/components/BottomNav.tsx` — add `{ to: '/komuniti', Icon: Users, label: copy.community.tabLabel }` to `NAV_ITEMS`
-- `src/App.tsx` — add `<Route path="/komuniti" element={<Community />} />`
-
-### Implementation order
-```
-6.0 Supabase setup (manual)
-  ↓
-6.1 npm install
-  ↓
-6.2 types/community.ts
-  ↓
-6.3 services/supabase.ts
-  ↓
-6.4 services/communityReports.ts
-  ↓
-6.5 hooks/useDeviceHash.ts
-6.6 hooks/useReports.ts + useSubmitReport.ts + useConfirmReport.ts
-  ↓
-6.7 copy.ts additions
-6.8 index.css Leaflet import
-  ↓
-6.9 Community page components (FilterBar → FeedCard → CommunityFeed → CommunityMap → ReportSheet → index)
-  ↓
-6.10 BottomNav + App.tsx routing
-```
-
-### Gotchas
-
-1. **Leaflet icon paths break with Vite** — use `L.divIcon()` with styled inline HTML for all markers; never use default Leaflet PNG markers
-2. **Map container needs explicit height** — `h-full` won't work; use `style={{ height: 'calc(100dvh - 8rem)' }}` or equivalent
-3. **shadcn Sheet uses `@radix-ui/react-dialog`** — already bundled in the `radix-ui` umbrella package; `npx shadcn add sheet` should work without extra installs
-4. **State on submission** — reverse-geocode the user's current coords via Nominatim to get Malaysian state; fallback to `config.homeLocation.state`
-5. **`refetchIntervalInBackground: false`** — prevents battery drain when tab is hidden
-6. **pg_cron availability** — the `expires_at > NOW()` filter in the view guarantees freshness regardless of whether the cron job runs; cron is best-effort cleanup only
-
-### Deliverable
-A working Komuniti tab with map + feed views, anonymous report submission, and community confirms — all on Supabase free tier.
+> **Deferred (post-Phase 5):** Service worker / offline shell (vite-plugin-pwa), separate icon files per size.
 
 ---
 
@@ -434,40 +300,39 @@ Telegram notifications working end-to-end for morning and evening.
 
 ---
 
-## Phase 6 — Polish, Testing & Deployment
+## [Reference] Deployment Polish Tasks
 
 ### Goals
 - App is production-ready, deployed, and shareable via URL
 
 ### Tasks
 
-**6.1 UI polish**
+**UI polish**
 - Consistent spacing, typography, and colour usage across all pages
 - Empty states (no confirmed office days, no weather data yet)
 - All copy reviewed and finalised in BM (`src/constants/copy.ts`)
 - App icon and title in `index.html`
 
-**6.2 Error handling**
+**Error handling**
 - Graceful error states for failed API calls
 - Fallback to cached data where available
 - Friendly BM error messages
 
-**6.3 Performance**
+**Performance**
 - Verify TanStack Query caching is working correctly
 - Ensure no redundant API calls on re-renders
 - Lighthouse mobile score check
 
-**6.4 Testing**
+**Testing**
 - Manual end-to-end walkthrough:
   - Fresh install → onboarding → weekly view → day detail → leave advisor
-  - Telegram notification send
   - Settings update → verify config updates correctly
 - Test on real mobile device (not just browser DevTools)
 
-**6.5 Deployment**
+**Deployment**
 - Push to GitHub repository
-- Connect to Vercel
-- Set `TELEGRAM_BOT_TOKEN` in Vercel environment variables
+- Connect to Netlify
+- Set `MET_TOKEN` in Netlify environment variables
 - Verify Edge Function works in production
 - Share URL with at least one friend for real-world config test
 
@@ -476,12 +341,12 @@ Telegram notifications working end-to-end for morning and evening.
 ## Implementation Order Summary
 
 ```
-Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6
-  │           │          │          │          │          │
-Config    Weather     Leave      Warnings  Polish    Komuniti
- Setup    + Weekly   Advisor     Banner    + Deploy  Community
+Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5
+  │           │          │          │          │
+Config    Weather     Leave      Warnings  Polish
+ Setup    + Weekly   Advisor     Banner    + Deploy
 ```
 
-Each phase produces a working, testable increment. The app is fully functional after Phase 4 — Phase 5 polishes and deploys it, Phase 6 adds the community layer.
+Each phase produces a working, testable increment. The app is fully functional after Phase 4 — Phase 5 polishes and deploys it.
 
 Telegram notifications are deferred post-v1.
