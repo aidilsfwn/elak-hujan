@@ -97,63 +97,6 @@ export const copy = {
     linkedin: "https://www.linkedin.com/in/aidilsafwan/",
   },
 
-  community: {
-    subNavMap: "Peta",
-    subNavFeed: "Suapan",
-    fab: "Laporkan",
-    pageSubtitle: "Kongsi keadaan hujan & bahaya di kawasan anda",
-    mapTip: "Tekan laporan untuk ke pin",
-    feedTitle: "Laporan Terkini",
-    feedLive: "Langsung",
-
-    filterJenis: "Jenis",
-    filterMasa: "Masa",
-    filterLokasi: "Lokasi",
-    filterAll: "Semua",
-    filterHujan: "Hujan",
-    filterBahaya: "Bahaya",
-    filter30min: "30 min",
-    filter1h: "1 Jam",
-    filter2h: "2 Jam",
-    filterNearMe: "Berhampiran",
-
-    reportSheetTitle: "Laporkan Keadaan",
-    stepCategory: "Apakah yang berlaku?",
-    stepSubType: "Pilih jenis lanjut",
-    stepLocation: "Lokasi anda",
-    detectingLocation: "Mengesan lokasi...",
-    submitButton: "Hantar Laporan",
-    submitting: "Menghantar...",
-    submitSuccess: "Laporan berjaya dihantar!",
-    submitRateLimited:
-      "Sila tunggu 30 minit sebelum laporan seterusnya di kawasan ini.",
-    submitError: "Gagal menghantar. Cuba lagi.",
-
-    confirmButton: "Saya pun!",
-
-    categoryHujan: "Hujan",
-    categoryBahaya: "Bahaya",
-
-    subTypeRenyai: "Renyai",
-    subTypeSederhana: "Sederhana",
-    subTypeLebat: "Lebat",
-    subTypeBanjirKilat: "Banjir Kilat",
-    subTypeJalanBanjir: "Jalan Banjir",
-    subTypePokokTumbang: "Pokok Tumbang",
-    subTypeLain: "Lain-lain",
-    subTypeJalanLicin: "Jalan Licin",
-    subTypeAnginKuat: "Angin Kuat",
-
-    emptyFeed:
-      "Tiada laporan lagi di sini — tekan 'Laporkan' untuk kongsikan keadaan! 🌧️",
-    loadingFeed: "Memuatkan laporan...",
-    errorFeed: "Gagal memuatkan laporan. Cuba lagi.",
-    reportedAgo: (mins: number) =>
-      mins < 60 ? `${mins} min lalu` : `${Math.floor(mins / 60)} jam lalu`,
-    confirmsCount: (n: number) => `${n} sahkan`,
-    locationFallback: "Lokasi anggaran (berdasarkan lokasi rumah)",
-  },
-
   errors: {
     weatherFetch: "Gagal mendapatkan data cuaca. Cuba lagi.",
     locationSearch: "Gagal mencari lokasi. Cuba lagi.",
