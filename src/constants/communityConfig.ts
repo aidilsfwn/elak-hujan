@@ -1,5 +1,3 @@
-import { copy } from '@/constants/copy';
-
 export const MARKER_CONFIG: Record<string, { emoji: string; bg: string }> = {
   renyai:        { emoji: '🌦️', bg: '#3b82f6' },
   sederhana:     { emoji: '🌧️', bg: '#3b82f6' },
@@ -13,13 +11,13 @@ export const MARKER_CONFIG: Record<string, { emoji: string; bg: string }> = {
 };
 
 export const SUBTYPE_LABEL: Record<string, string> = {
-  renyai:        copy.community.subTypeRenyai,
-  sederhana:     copy.community.subTypeSederhana,
-  lebat:         copy.community.subTypeLebat,
-  banjir_kilat:  copy.community.subTypeBanjirKilat,
-  jalan_banjir:  copy.community.subTypeJalanBanjir,
-  pokok_tumbang: copy.community.subTypePokokTumbang,
-  lain:          copy.community.subTypeLain,
-  jalan_licin:   copy.community.subTypeJalanLicin,
-  angin_kuat:    copy.community.subTypeAnginKuat,
+  renyai:        'Renyai',
+  sederhana:     'Sederhana',
+  lebat:         'Lebat',
+  banjir_kilat:  'Banjir Kilat',
+  jalan_banjir:  'Jalan Banjir',
+  pokok_tumbang: 'Pokok Tumbang',
+  lain:          'Lain-lain',
+  jalan_licin:   'Jalan Licin',
+  angin_kuat:    'Angin Kuat',
 };

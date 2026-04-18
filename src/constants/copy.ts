@@ -5,7 +5,6 @@ export const copy = {
   nav: {
     weekly: "Mingguan",
     leave: "Masa Balik",
-    community: "Komuniti",
     settings: "Tetapan",
   },
 
