@@ -9,7 +9,7 @@ const destinations = [
 ] as const;
 
 function Wordmark() {
-  return <NavLink to="/leave" className="eh-wordmark" aria-label="ElakHujan"><span className="eh-mark" aria-hidden="true">EH</span><span>ElakHujan</span></NavLink>;
+  return <NavLink to="/leave" className="eh-wordmark" aria-label="ElakHujan"><img className="eh-mark" src="/favicon-96x96.png" alt="" aria-hidden="true" /><span>ElakHujan</span></NavLink>;
 }
 
 function NavigationLinks({ compact = false }: { compact?: boolean }) {
