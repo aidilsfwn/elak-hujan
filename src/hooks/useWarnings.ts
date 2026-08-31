@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchActiveWarnings, WARNINGS_STALE_MS } from '@/services/dataGovMy';
+import { fetchActiveWarnings, filterWarningsForRoute, WARNINGS_STALE_MS } from '@/services/dataGovMy';
 import { useConfig } from './useConfig';
 import type { WeatherWarning } from '@/types/warning';
 
-export function useWarnings(): { warnings: WeatherWarning[]; isLoading: boolean } {
+export function useWarnings(): { warnings: WeatherWarning[]; isLoading: boolean; isError: boolean } {
   const { config } = useConfig();
 
   const query = useQuery({
@@ -13,5 +13,9 @@ export function useWarnings(): { warnings: WeatherWarning[]; isLoading: boolean 
     enabled: !!config,
   });
 
-  return { warnings: query.data ?? [], isLoading: query.isLoading };
+  return {
+    warnings: config ? filterWarningsForRoute(query.data ?? [], config) : [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+  };
 }

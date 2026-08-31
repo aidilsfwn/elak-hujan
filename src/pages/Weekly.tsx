@@ -1,4 +1,4 @@
-import { ArrowRight, RefreshCw } from 'lucide-react';
+import { ArrowRight, Clock3, House, RefreshCw } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { OfficialForecast } from '@/components/OfficialForecast';
@@ -9,14 +9,22 @@ import { useLeaveAdvisorVisible } from '@/hooks/useLeaveAdvisorVisible';
 import { useNowcast } from '@/hooks/useNowcast';
 import { useWeather } from '@/hooks/useWeather';
 import { getRecommendedLeaveTime } from '@/lib/leaveAdvisor';
-import { getCurrentHourProb, toLocalDateStr, type ScoredDay } from '@/lib/rainScoring';
+import { malaysiaNow, toLocalDateStr, type ScoredDay } from '@/lib/rainScoring';
 import { getRiskLevel, getVerdict, riskLabel } from '@/lib/risk';
 
 const names: Record<string, string> = { monday: 'Isnin', tuesday: 'Selasa', wednesday: 'Rabu', thursday: 'Khamis', friday: 'Jumaat' };
+const probability = (value: number | null) => value === null ? '—' : `${Math.round(value)}%`;
 
 function SmallDay({ day, threshold, index }: { day: ScoredDay; threshold: number; index: number }) {
-  const risk = getRiskLevel(day.combinedScore, threshold);
-  return <motion.div initial={{ opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * .04 }}><Link to={`/day/${day.dateStr}`} className={`week-mini risk-${risk}`}><header><span>{day.date.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' })}</span>{day.isRecommended && <em>Disyorkan</em>}</header><h3>{names[day.dayName]}</h3><div><p><span>Pagi</span><strong>{Math.round(day.morningScore)}%</strong></p><p><span>Petang</span><strong>{Math.round(day.eveningScore)}%</strong></p></div><i className="risk-pin" /></Link></motion.div>;
+  const risk = getRiskLevel(day.combinedScore ?? 100, threshold);
+  return <motion.div initial={{ opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * .04 }}>
+    <Link to={`/day/${day.dateStr}`} className={`week-mini risk-${risk}`}>
+      <header><span>{day.date.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' })}</span>{day.isRecommended && <em>Disyorkan</em>}</header>
+      <h3>{names[day.dayName]}</h3>
+      <div><p><span>Laluan pagi</span><strong>{probability(day.morningScore)}</strong></p><p><span>Laluan petang</span><strong>{probability(day.eveningScore)}</strong></p></div>
+      <small className="confidence-note">Keyakinan {day.confidence}</small><i className="risk-pin" />
+    </Link>
+  </motion.div>;
 }
 
 export function Weekly() {
@@ -27,38 +35,52 @@ export function Weekly() {
   const official = useNowcast(config?.officeLocation);
   if (!config) return null;
 
-  const [lead, ...following] = recommendation.days;
-  const current = weather.homeWeather ? getCurrentHourProb(weather.homeWeather) : null;
-  const nowRisk = getRiskLevel(current ?? 0, config.rainThreshold);
-  const leave = weather.officeWeather ? getRecommendedLeaveTime(weather.officeWeather, new Date(), config.eveningWindow, config.rainThreshold) : null;
-  const leadRisk = getRiskLevel(lead?.combinedScore ?? 0, config.rainThreshold);
-  const leadIsToday = lead?.dateStr === toLocalDateStr(new Date());
+  const availableDays = recommendation.days.filter((day) => day.combinedScore !== null);
+  const recommendedDays = availableDays.filter((day) => day.isRecommended).sort((a, b) => a.combinedScore! - b.combinedScore!);
+  const lead = recommendedDays[0] ?? availableDays[0];
+  const following = recommendation.days.filter((day) => day.dateStr !== lead?.dateStr);
+  const now = malaysiaNow();
+  const current = weather.homeWeather?.current;
+  const currentRain = current?.precipitation ?? null;
+  const currentCode = current?.weather_code ?? 0;
+  const currentGust = current?.wind_gusts_10m ?? 0;
+  const currentRiskScore = currentRain === null ? 100 : Math.max(currentCode >= 95 ? 90 : 0, currentRain >= 2 ? 80 : currentRain > 0 ? 55 : 0, currentGust >= 40 ? 70 : 0);
+  const nowRisk = getRiskLevel(currentRiskScore, config.rainThreshold);
+  const leave = weather.routeWeather.length ? getRecommendedLeaveTime(weather.routeWeather, now, config.eveningWindow, config.rainThreshold, now) : null;
+  const leaveSlot = leave?.slots.find((slot) => slot.time === leave.recommendedTime);
+  const leadRisk = getRiskLevel(lead?.combinedScore ?? 100, config.rainThreshold);
+  const leadIsToday = lead?.dateStr === toLocalDateStr(now);
 
   return <div className="weekly-page">
     <header className="weekly-heading"><div><span>Rancangan lima hari</span><h1>Minggu yang lebih kering.</h1></div><button onClick={recommendation.refetch} aria-label="Muat semula"><RefreshCw className={recommendation.isFetching ? 'is-spinning' : ''} /></button></header>
     <WarningAlert />
 
     {recommendation.isLoading && <div className="weekly-loading">Menyusun hari terbaik…</div>}
-    {recommendation.isError && recommendation.days.length === 0 && <div className="weekly-error"><span>Ramalan tidak dapat dimuatkan.</span><button onClick={recommendation.refetch}>Cuba lagi</button></div>}
+    {recommendation.isError && <div className="weekly-error"><span>Ramalan tidak dapat dimuatkan. Cadangan lama tidak digunakan.</span><button onClick={recommendation.refetch}>Cuba lagi</button></div>}
+    {!recommendation.isLoading && !recommendation.isError && availableDays.length === 0 && <div className="weekly-error">Data ramalan lengkap tidak tersedia untuk dinilai.</div>}
 
     {lead && <div className="weekly-composition">
       <section className={`week-lead risk-${leadRisk}`}>
         <div className="week-lead-accent" />
-        <header><div><span>{leadIsToday ? 'Hari ini' : 'Hari kerja terdekat'}</span><p>{lead.date.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</p></div>{lead.isRecommended && <em>Pilihan terbaik</em>}</header>
-        <div className="week-lead-copy"><h2>{names[lead.dayName]}</h2><p>{getVerdict(lead.combinedScore, config.rainThreshold)}.</p></div>
-        <div className="week-lead-measures"><div><span>Rumah · pagi</span><strong>{Math.round(lead.morningScore)}%</strong><small>{config.morningWindow.start}–{config.morningWindow.end}</small></div><div><span>Pejabat · petang</span><strong>{Math.round(lead.eveningScore)}%</strong><small>{config.eveningWindow.start}–{config.eveningWindow.end}</small></div></div>
+        <header><div><span>{leadIsToday ? 'Hari ini' : 'Risiko terendah'}</span><p>{lead.date.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</p></div>{lead.isRecommended && <em>Pilihan terbaik</em>}</header>
+        <div className="week-lead-copy"><h2>{names[lead.dayName]}</h2><p>{getVerdict(lead.combinedScore!, config.rainThreshold)}.</p><small>Skor {Math.round(lead.combinedScore!)} · keyakinan {lead.confidence}{lead.hasThunderstorm ? ' · ribut petir berpotensi' : ''}</small></div>
+        <div className="week-lead-measures"><div><span>Laluan · pagi</span><strong>{probability(lead.morningScore)}</strong><small>Puncak {config.morningWindow.start}–{config.morningWindow.end}</small></div><div><span>Laluan · petang</span><strong>{probability(lead.eveningScore)}</strong><small>Puncak {config.eveningWindow.start}–{config.eveningWindow.end}</small></div></div>
         <footer><span className="risk-name">{riskLabel[leadRisk]}</span><Link to={`/day/${lead.dateStr}`}>Lihat setiap jam<ArrowRight /></Link></footer>
       </section>
-
-      <aside className="weekly-side">
-        <div className="week-mini-grid">{following.map((day, index) => <SmallDay key={day.dateStr} day={day} threshold={config.rainThreshold} index={index} />)}</div>
-        <OfficialForecast forecast={official.forecast} isLoading={official.isLoading} isError={official.isError} condensed />
-      </aside>
+      <aside className="weekly-side"><div className="week-mini-grid">{following.map((day, index) => <SmallDay key={day.dateStr} day={day} threshold={config.rainThreshold} index={index} />)}</div><OfficialForecast forecast={official.forecast} isLoading={official.isLoading} isError={official.isError} condensed /></aside>
     </div>}
 
-    <section className="week-live-strip">
-      <div className={`risk-${nowRisk}`}><i className="risk-pin" /><span>Sekarang di rumah</span><strong>{current === null ? '—' : `${Math.round(current)}%`}</strong><small>{current === null ? 'Data semasa tiada' : getVerdict(current, config.rainThreshold)}</small></div>
-      {showLeave && leave && <Link to="/leave"><span>Masa balik</span><strong>{leave.recommendedTime}</strong><small>{Math.round(leave.probability)}% hujan</small><ArrowRight /></Link>}
+    <section className="week-live-cards" aria-label="Ringkasan semasa">
+      <article className={`week-live-card ${currentRain === null ? 'is-unavailable' : `risk-${nowRisk}`}`}>
+        <header><span className="week-live-icon"><House /></span><span>Sekarang · rumah</span><i className="risk-pin" /></header>
+        <div className="week-live-value"><strong>{currentRain === null ? 'Data tiada' : currentRain > 0 ? 'Hujan dikesan' : 'Tiada hujan'}</strong><span>{currentRain === null ? '—' : `${currentRain.toFixed(1)} mm`}</span></div>
+        <footer>Anggaran model cuaca di lokasi rumah anda</footer>
+      </article>
+      {showLeave && leave && <Link to="/leave" className={`week-live-card week-leave-card risk-${getRiskLevel(leaveSlot?.riskScore ?? 100, config.rainThreshold)}`}>
+        <header><span className="week-live-icon"><Clock3 /></span><span>Cadangan masa balik</span><i className="risk-pin" /></header>
+        <div className="week-live-value"><strong>{leave.recommendedTime}</strong><span>{Math.round(leave.probability)}% hujan</span></div>
+        <footer><span>Pilihan paling selamat di sepanjang laluan</span><i className="week-live-arrow"><ArrowRight /></i></footer>
+      </Link>}
     </section>
   </div>;
 }

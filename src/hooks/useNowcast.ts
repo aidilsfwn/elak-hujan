@@ -1,19 +1,23 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchMetStateLocations, fetchTodayForecast } from '@/services/metMalaysia';
+import { fetchMetTownLocations, fetchTodayForecast } from '@/services/metMalaysia';
 import { NOWCAST_CACHE_MINUTES, MET_LOCATIONS_CACHE_HOURS } from '@/constants/thresholds';
 import type { Location } from '@/types/config';
 import type { MetLocation, MetDailyForecast } from '@/types/metMalaysia';
 
-function resolveStateLocationId(
-  stateName: string,
+export function resolveNearestLocationId(
+  target: Location,
   locations: MetLocation[],
 ): string | null {
-  const lower = stateName.toLowerCase();
-  const match = locations.find((loc) => {
-    const name = loc.name?.toLowerCase();
-    if (!name) return false;
-    return name.includes(lower) || lower.includes(name);
-  });
+  const candidates = locations.filter((location) => location.latitude !== null && location.longitude !== null);
+  const match = candidates.reduce<MetLocation | null>((nearest, location) => {
+    if (!nearest) return location;
+    const distance = (candidate: MetLocation) => {
+      const latDelta = candidate.latitude! - target.lat;
+      const lonDelta = candidate.longitude! - target.lon;
+      return latDelta * latDelta + lonDelta * lonDelta;
+    };
+    return distance(location) < distance(nearest) ? location : nearest;
+  }, null);
   return match?.id ?? match?.locationid ?? null;
 }
 
@@ -25,20 +29,20 @@ export function useNowcast(officeLocation: Location | undefined): {
   const enabled = !!officeLocation;
 
   const {
-    data: stateLocations = [],
+    data: townLocations = [],
     isLoading: isLocationsLoading,
     isError: isLocationsError,
   } = useQuery({
-    queryKey: ['met-state-locations'],
-    queryFn: fetchMetStateLocations,
+    queryKey: ['met-town-locations', 'all-v2'],
+    queryFn: fetchMetTownLocations,
     staleTime: MET_LOCATIONS_CACHE_HOURS * 60 * 60 * 1000,
     retry: false,
     enabled,
   });
 
   const locationId =
-    officeLocation && stateLocations.length > 0
-      ? resolveStateLocationId(officeLocation.state, stateLocations)
+    officeLocation && townLocations.length > 0
+      ? resolveNearestLocationId(officeLocation, townLocations)
       : null;
 
   const {

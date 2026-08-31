@@ -84,10 +84,10 @@ export const copy = {
     accuracyLabel: "Ketepatan & Had",
     accuracyNotes: [
       "Ramalan cuaca menggunakan koordinat tepat lokasi rumah dan pejabat — bukan peringkat negeri.",
-      "Open-Meteo menggunakan model global ECMWF IFS (~27 km grid) untuk Malaysia. Model resolusi tinggi 1–2 km hanya tersedia untuk Eropah dan Amerika Syarikat.",
+      "Open-Meteo memilih gabungan model terbaik yang tersedia untuk koordinat Malaysia. Kebarangkalian hujan datang daripada model ensemble berskala serantau/global, bukan sensor di rumah anda.",
       "Hujan konvektif petang (ribut petir tempatan) sukar diramal oleh mana-mana model NWP, termasuk model profesional seperti ECMWF — sistem ini terbentuk dan hilang dalam masa 1–2 jam.",
       "Nilai yang dipaparkan ialah kebarangkalian hujan (%), bukan jumlah hujan sebenar (mm). Nilai 40% bermaksud model menjangka peluang 40% hujan berlaku — bukan intensiti.",
-      "Amaran MET Malaysia adalah pada peringkat negeri sahaja.",
+      "Ramalan rasmi MET menggunakan bandar terdekat. Amaran hanya dipaparkan apabila kawasan rumah atau pejabat disebut secara jelas.",
     ],
     disclaimer:
       "Gunakan sebagai panduan perancangan sahaja. Semak ramalan terkini sebelum bertolak.",

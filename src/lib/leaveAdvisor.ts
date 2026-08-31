@@ -1,81 +1,67 @@
 import type { WeatherData } from '@/types/weather';
 import type { TimeWindow } from '@/types/config';
-import { toLocalDateStr } from '@/lib/rainScoring';
+import { getRouteHourly, timeToMinutes, toLocalDateStr } from '@/lib/rainScoring';
 
 export interface HourlySlot {
-  time: string;    // "17:00"
-  hour: number;    // 17
+  time: string;
+  hour: number;
   probability: number;
+  precipitationMm: number;
+  gustKmh: number | null;
+  weatherCode: number | null;
+  riskScore: number;
 }
 
 export interface LeaveRecommendation {
   recommendedTime: string;
   probability: number;
   hasCleanWindow: boolean;
-  slots: HourlySlot[]; // all scanned slots, for display
+  slots: HourlySlot[];
 }
 
-/**
- * Scans hourly slots from eveningWindow.start - 1hr to eveningWindow.end + 2hr.
- * Returns the earliest slot below rainThreshold, or the least-bad slot.
- */
+function slotRisk(slot: Omit<HourlySlot, 'riskScore'>): number {
+  let score = slot.probability;
+  if (slot.precipitationMm >= 2) score = Math.max(score, 85);
+  else if (slot.precipitationMm >= 0.5) score = Math.max(score, 65);
+  if ((slot.gustKmh ?? 0) >= 40) score = Math.max(score, 70);
+  if ((slot.weatherCode ?? 0) >= 95) score = Math.max(score, 90);
+  return score;
+}
+
+/** Finds the safest still-actionable slot in the configured evening scan window. */
 export function getRecommendedLeaveTime(
-  officeWeather: WeatherData,
+  routeWeather: WeatherData[],
   date: Date,
   eveningWindow: TimeWindow,
   rainThreshold: number,
-): LeaveRecommendation {
-  const dateStr = toLocalDateStr(date);
-  const windowStartH = parseInt(eveningWindow.start.slice(0, 2), 10);
-  const windowEndH = parseInt(eveningWindow.end.slice(0, 2), 10);
-  const scanStartH = Math.max(0, windowStartH - 1);
-  const scanEndH = Math.min(23, windowEndH + 2);
+  notBefore?: Date,
+): LeaveRecommendation | null {
+  const scanStart = Math.max(0, timeToMinutes(eveningWindow.start) - 60);
+  const scanEnd = Math.min(24 * 60, timeToMinutes(eveningWindow.end) + 120);
+  const minimum = notBefore && toLocalDateStr(notBefore) === toLocalDateStr(date)
+    ? notBefore.getHours() * 60 + notBefore.getMinutes()
+    : scanStart;
 
-  const slots: HourlySlot[] = [];
-  officeWeather.hourly.time.forEach((t, i) => {
-    if (t.slice(0, 10) !== dateStr) return;
-    const hour = parseInt(t.slice(11, 13), 10);
-    if (hour >= scanStartH && hour <= scanEndH) {
-      slots.push({
-        time: `${String(hour).padStart(2, '0')}:00`,
-        hour,
-        probability: officeWeather.hourly.precipitation_probability[i],
-      });
-    }
+  const slots = getRouteHourly(routeWeather, toLocalDateStr(date)).flatMap((item) => {
+    if (item.hour === 0) return [];
+    const departureHour = item.hour - 1;
+    const slotMinutes = departureHour * 60;
+    if (slotMinutes < scanStart || slotMinutes > scanEnd || slotMinutes < minimum || item.probability === null) return [];
+    const base = { time: `${String(departureHour).padStart(2, '0')}:00`, hour: departureHour, probability: item.probability, precipitationMm: item.precipitationMm, gustKmh: item.gustKmh, weatherCode: item.weatherCode };
+    return [{ ...base, riskScore: slotRisk(base) }];
   });
 
-  if (slots.length === 0) {
-    return { recommendedTime: eveningWindow.start, probability: 0, hasCleanWindow: false, slots };
-  }
-
-  const cleanSlot = slots.find((s) => s.probability < rainThreshold);
-  if (cleanSlot) {
-    return { recommendedTime: cleanSlot.time, probability: cleanSlot.probability, hasCleanWindow: true, slots };
-  }
-
-  const leastBad = slots.reduce((best, s) => (s.probability < best.probability ? s : best), slots[0]);
-  return { recommendedTime: leastBad.time, probability: leastBad.probability, hasCleanWindow: false, slots };
+  if (slots.length === 0) return null;
+  const best = slots.reduce((winner, slot) => slot.riskScore < winner.riskScore ? slot : winner);
+  return { recommendedTime: best.time, probability: best.probability, hasCleanWindow: best.riskScore < rainThreshold, slots };
 }
 
-/** Returns up to `count` hourly slots starting at `fromHour` for today. */
-export function getRollingSlots(
-  officeWeather: WeatherData,
-  date: Date,
-  fromHour: number,
-  count = 4,
-): HourlySlot[] {
-  const dateStr = toLocalDateStr(date);
-  const slots: HourlySlot[] = [];
-  officeWeather.hourly.time.forEach((t, i) => {
-    if (t.slice(0, 10) !== dateStr) return;
-    const hour = parseInt(t.slice(11, 13), 10);
-    if (hour >= fromHour && hour < fromHour + count) {
-      slots.push({
-        time: `${String(hour).padStart(2, '0')}:00`,
-        hour,
-        probability: officeWeather.hourly.precipitation_probability[i],
-      });
-    }
+export function getRollingSlots(routeWeather: WeatherData[], date: Date, fromHour: number, count = 4): HourlySlot[] {
+  return getRouteHourly(routeWeather, toLocalDateStr(date)).flatMap((item) => {
+    if (item.hour === 0) return [];
+    const departureHour = item.hour - 1;
+    if (departureHour < fromHour || departureHour >= fromHour + count || item.probability === null) return [];
+    const base = { time: `${String(departureHour).padStart(2, '0')}:00`, hour: departureHour, probability: item.probability, precipitationMm: item.precipitationMm, gustKmh: item.gustKmh, weatherCode: item.weatherCode };
+    return [{ ...base, riskScore: slotRisk(base) }];
   });
-  return slots;
 }

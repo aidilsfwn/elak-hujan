@@ -1,41 +1,57 @@
+import { useEffect, useRef } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useConfig } from '@/hooks/useConfig';
 import { useWeather } from '@/hooks/useWeather';
 import { getRecommendedLeaveTime } from '@/lib/leaveAdvisor';
-import { extractWindowAverage, toLocalDateStr } from '@/lib/rainScoring';
+import { assessRouteWindow, getRouteHourly, malaysiaNow, timeToMinutes, toLocalDateStr } from '@/lib/rainScoring';
 import { getRiskLevel, getVerdict, riskLabel } from '@/lib/risk';
 
 const names = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
 function parseDate(value: string) { const [year, month, day] = value.split('-').map(Number); return new Date(year, month - 1, day); }
+const formatProbability = (value: number | null) => value === null ? '—' : `${Math.round(value)}%`;
 
 export function DayDetail() {
   const { date: dateString } = useParams<{ date: string }>();
   const navigate = useNavigate();
   const { config } = useConfig();
-  const { homeWeather, officeWeather, isLoading } = useWeather();
+  const weather = useWeather();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const date = parseDate(dateString ?? 'invalid');
+  const validDate = Boolean(dateString && !Number.isNaN(date.getTime()) && toLocalDateStr(date) === dateString);
+  const morning = config && validDate ? assessRouteWindow(weather.routeWeather, date, config.morningWindow.start, config.morningWindow.end) : null;
+  const evening = config && validDate ? assessRouteWindow(weather.routeWeather, date, config.eveningWindow.start, config.eveningWindow.end) : null;
+  const morningRisk = morning?.riskScore;
+  const eveningRisk = evening?.riskScore;
+  const complete = typeof morningRisk === 'number' && typeof eveningRisk === 'number';
+  const combined = complete ? Math.max(morningRisk, eveningRisk) * .75 + Math.min(morningRisk, eveningRisk) * .25 : null;
+  const risk = getRiskLevel(combined ?? 100, config?.rainThreshold ?? 40);
+  const leave = config && validDate && weather.routeWeather.length ? getRecommendedLeaveTime(weather.routeWeather, date, config.eveningWindow, config.rainThreshold) : null;
+  const hours = validDate && dateString ? getRouteHourly(weather.routeWeather, dateString) : [];
+  const selectedHour = leave ? Number(leave.recommendedTime.slice(0, 2)) : config ? timeToMinutes(config.morningWindow.start) / 60 : 8;
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || hours.length === 0) return;
+    const target = container.querySelector<HTMLElement>(`[data-hour="${Math.floor(selectedHour)}"]`);
+    if (target) container.scrollLeft = Math.max(0, target.offsetLeft - container.clientWidth / 2);
+  }, [hours.length, selectedHour]);
+
   if (!config || !dateString) return null;
 
-  const date = parseDate(dateString);
-  const morning = homeWeather ? extractWindowAverage(homeWeather, date, config.morningWindow.start, config.morningWindow.end) : 0;
-  const evening = officeWeather ? extractWindowAverage(officeWeather, date, config.eveningWindow.start, config.eveningWindow.end) : 0;
-  const combined = (morning + evening) / 2;
-  const risk = getRiskLevel(combined, config.rainThreshold);
-  const leave = officeWeather ? getRecommendedLeaveTime(officeWeather, date, config.eveningWindow, config.rainThreshold) : null;
-  const hours = officeWeather?.hourly.time.map((time, index) => ({ time, hour: Number(time.slice(11, 13)), probability: officeWeather.hourly.precipitation_probability[index] })).filter((item) => item.time.slice(0, 10) === dateString) ?? [];
-
   return <div className={`day-page risk-${risk}`}>
-    <button className="day-back" onClick={() => navigate(-1)}><ArrowLeft />Kembali ke minggu</button>
-    <div className="day-layout">
-      <motion.section className="day-intro" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
-        <span>{dateString === toLocalDateStr(new Date()) ? 'Hari ini' : date.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-        <h1>{names[date.getDay()]}</h1>
-        <p>{getVerdict(combined, config.rainThreshold)}.</p>
-        <em>{riskLabel[risk]}</em>
-      </motion.section>
-      <section className="day-commutes"><div><span>Rumah · pagi</span><strong>{Math.round(morning)}%</strong><small>{config.morningWindow.start}–{config.morningWindow.end}</small></div><div><span>Pejabat · petang</span><strong>{Math.round(evening)}%</strong><small>{config.eveningWindow.start}–{config.eveningWindow.end}</small></div>{leave && <footer><span>Masa balik terbaik</span><strong>{leave.recommendedTime}</strong></footer>}</section>
-    </div>
-    {isLoading ? <div className="day-loading">Memuatkan setiap jam…</div> : <section className="day-hours"><header><div><span>Sejam demi sejam</span><h2>Kebarangkalian hujan</h2></div><small>Pejabat · 24 jam</small></header><div className="day-hour-scroll"><div className="day-hour-plot">{hours.map(({ hour, probability }) => { const hourRisk = getRiskLevel(probability, config.rainThreshold); const selected = leave?.recommendedTime === `${String(hour).padStart(2, '0')}:00`; return <div key={hour} className={`risk-${hourRisk} ${selected ? 'is-selected' : ''}`}><span>{String(hour).padStart(2, '0')}</span><i style={{ height: `${Math.max(5, probability)}px` }} /><strong>{Math.round(probability)}%</strong></div>; })}</div></div></section>}
+    <button className="day-back" onClick={() => navigate('/')}><ArrowLeft />Kembali ke minggu</button>
+    {!validDate ? <div className="day-loading">Tarikh tidak sah.</div> : weather.isLoading ? <div className="day-loading">Memuatkan data laluan…</div> : weather.isError ? <div className="day-loading">Ramalan tidak dapat dimuatkan. Data lama tidak digunakan.</div> : !complete ? <div className="day-loading">Data lengkap tidak tersedia untuk tarikh ini.</div> : <>
+      <div className="day-layout">
+        <motion.section className="day-intro" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
+          <span>{dateString === toLocalDateStr(malaysiaNow()) ? 'Hari ini' : date.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+          <h1>{names[date.getDay()]}</h1><p>{getVerdict(combined!, config.rainThreshold)}.</p><em>{riskLabel[risk]}</em>
+          <small className="day-method">Skor menekankan perjalanan yang paling berisiko, hujan lebat, ribut petir dan angin di lima titik laluan.</small>
+        </motion.section>
+        <section className="day-commutes"><div><span>Laluan · pagi</span><strong>{formatProbability(morning!.peakProbability)}</strong><small>Peluang tertinggi · {config.morningWindow.start}–{config.morningWindow.end}</small></div><div><span>Laluan · petang</span><strong>{formatProbability(evening!.peakProbability)}</strong><small>Peluang tertinggi · {config.eveningWindow.start}–{config.eveningWindow.end}</small></div>{leave && <footer><span>Masa balik risiko terendah</span><strong>{leave.recommendedTime}</strong></footer>}</section>
+      </div>
+      <section className="day-hours"><header><div><span>Sejam demi sejam</span><h2>Risiko tertinggi di sepanjang laluan</h2></div><small>Seret untuk melihat · label ialah masa bertolak</small></header><div className="day-hour-scroll" ref={scrollRef}><div className="day-hour-plot">{hours.filter(({ hour }) => hour > 0).map(({ hour, probability }) => { const departureHour = hour - 1; const value = probability ?? 100; const hourRisk = getRiskLevel(value, config.rainThreshold); const selected = leave ? Number(leave.recommendedTime.slice(0, 2)) === departureHour : false; const departureMinutes = departureHour * 60; const morningBand = departureMinutes >= timeToMinutes(config.morningWindow.start) && departureMinutes < timeToMinutes(config.morningWindow.end); const eveningBand = departureMinutes >= timeToMinutes(config.eveningWindow.start) && departureMinutes < timeToMinutes(config.eveningWindow.end); return <div data-hour={departureHour} key={hour} className={`risk-${hourRisk} ${selected ? 'is-selected' : ''} ${morningBand ? 'is-morning' : ''} ${eveningBand ? 'is-evening' : ''}`}><span>{String(departureHour).padStart(2, '0')}</span><i style={{ height: `${Math.max(5, value)}px` }} /><strong>{probability === null ? '—' : `${Math.round(probability)}%`}</strong></div>; })}</div></div><div className="day-chart-legend"><span className="is-morning">Pagi</span><span className="is-evening">Petang</span><span>Peratus = peluang tertinggi antara lima titik laluan</span></div></section>
+    </>}
   </div>;
 }

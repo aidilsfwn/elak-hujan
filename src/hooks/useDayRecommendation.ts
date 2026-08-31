@@ -10,14 +10,14 @@ export function useDayRecommendation(): {
   isFetching: boolean;
   refetch: () => void;
 } {
-  const { homeWeather, officeWeather, isLoading, isError, isFetching, refetch } = useWeather();
+  const { routeWeather, isLoading, isError, isFetching, refetch } = useWeather();
   const { config } = useConfig();
 
   const days = useMemo(() => {
-    if (!homeWeather || !officeWeather || !config) return [];
-    const scored = scoreDays(homeWeather, officeWeather, config);
+    if (routeWeather.length === 0 || !config) return [];
+    const scored = scoreDays(routeWeather, config);
     return getRecommendedDays(scored, config.officeDaysPerWeek, config.preferredDays);
-  }, [homeWeather, officeWeather, config]);
+  }, [routeWeather, config]);
 
   return { days, isLoading, isError, isFetching, refetch };
 }

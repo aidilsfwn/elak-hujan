@@ -8,7 +8,8 @@ export const RISK_LEVELS = {
   HIGH:   { max: 100, label: 'Tinggi',    color: 'text-red-700 bg-red-100 border-red-300' },
 } as const;
 
-export const WEATHER_CACHE_MINUTES = 60;
+export const WEATHER_CACHE_MINUTES = 10;
+export const WEATHER_REFRESH_MINUTES = 10;
 export const WARNINGS_CACHE_MINUTES = 30;
 export const NOWCAST_CACHE_MINUTES = 5;
 export const MET_LOCATIONS_CACHE_HOURS = 24;

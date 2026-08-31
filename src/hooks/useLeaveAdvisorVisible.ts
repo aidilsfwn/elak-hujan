@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useConfig } from './useConfig';
 import { LEAVE_ADVISOR_LEAD_HOURS } from '@/constants/thresholds';
+import { malaysiaNow } from '@/lib/rainScoring';
 
 /**
  * Returns true when the current time is within LEAVE_ADVISOR_LEAD_HOURS before
@@ -15,7 +16,7 @@ export function useLeaveAdvisorVisible(): boolean {
     if (!config) return;
 
     function check() {
-      const now = new Date();
+      const now = malaysiaNow();
       const [startH, startM] = config!.eveningWindow.start.split(':').map(Number);
       const [endH, endM] = config!.eveningWindow.end.split(':').map(Number);
       const nowMins = now.getHours() * 60 + now.getMinutes();

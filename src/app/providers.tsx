@@ -7,7 +7,7 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: Math.min(WEATHER_CACHE_MINUTES, WARNINGS_CACHE_MINUTES) * 60 * 1000,
       retry: 1,
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
     },
   },
 });

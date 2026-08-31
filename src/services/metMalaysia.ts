@@ -8,6 +8,15 @@ import type {
 
 const BASE_URL = '/api/met';
 
+export function malaysiaDateStr(date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kuala_Lumpur',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
 const PERIOD_MAP: Record<string, ForecastPeriod['period']> = {
   FGM: 'morning',
   FGA: 'afternoon',
@@ -20,16 +29,30 @@ const PERIOD_LABEL: Record<ForecastPeriod['period'], string> = {
   night: 'Malam',
 };
 
-export async function fetchMetStateLocations(): Promise<MetLocation[]> {
-  const params = new URLSearchParams({ locationcategoryid: 'STATE' });
-  const res = await fetch(`${BASE_URL}/locations?${params}`);
-  if (!res.ok) throw new Error(`MET locations error: ${res.status}`);
-  const json = (await res.json()) as MetLocationsResponse;
-  return json.results ?? [];
+export async function fetchMetTownLocations(): Promise<MetLocation[]> {
+  async function fetchPage(offset = 0): Promise<MetLocationsResponse> {
+    const params = new URLSearchParams({ locationcategoryid: 'TOWN', offset: String(offset), limit: '100' });
+    const res = await fetch(`${BASE_URL}/locations?${params}`);
+    if (!res.ok) throw new Error(`MET locations error: ${res.status}`);
+    return res.json() as Promise<MetLocationsResponse>;
+  }
+
+  const first = await fetchPage();
+  const pageSize = first.metadata?.resultset?.limit || first.results?.length || 50;
+  const total = first.metadata?.resultset?.count || first.results?.length || 0;
+  const offsets: number[] = [];
+  for (let offset = pageSize; offset < total; offset += pageSize) offsets.push(offset);
+  const remaining = await Promise.all(offsets.map(fetchPage));
+  const unique = new Map<string, MetLocation>();
+  for (const location of [first, ...remaining].flatMap((page) => page.results ?? [])) {
+    const id = location.id ?? location.locationid;
+    if (id) unique.set(id, location);
+  }
+  return [...unique.values()];
 }
 
 export async function fetchTodayForecast(locationId: string): Promise<MetDailyForecast | null> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = malaysiaDateStr();
   const params = new URLSearchParams({
     datasetid: 'FORECAST',
     datacategoryid: 'GENERAL',

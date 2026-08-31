@@ -1,32 +1,42 @@
 import type { WeatherData } from '@/types/weather';
 import type { UserConfig } from '@/types/config';
 
-/** Returns the rain probability for the current local hour, or null if not found. */
-export function getCurrentHourProb(weather: WeatherData): number | null {
-  const now = new Date();
-  const dateStr = toLocalDateStr(now);
-  const hour = now.getHours();
-  const timeKey = `${dateStr}T${String(hour).padStart(2, '0')}:00`;
-  const idx = weather.hourly.time.indexOf(timeKey);
-  return idx >= 0 ? weather.hourly.precipitation_probability[idx] : null;
+export interface WindowAssessment {
+  available: boolean;
+  averageProbability: number | null;
+  peakProbability: number | null;
+  precipitationMm: number | null;
+  peakGustKmh: number | null;
+  hasThunderstorm: boolean;
+  riskScore: number | null;
+}
+
+export interface RouteHour {
+  time: string;
+  hour: number;
+  probability: number | null;
+  precipitationMm: number;
+  gustKmh: number | null;
+  weatherCode: number | null;
 }
 
 export interface ScoredDay {
   date: Date;
-  dateStr: string;   // "2026-02-24"
-  dayName: string;   // "monday"
-  morningScore: number;   // 0–100
-  eveningScore: number;   // 0–100
-  combinedScore: number;  // 0–100
+  dateStr: string;
+  dayName: string;
+  morningScore: number | null;
+  eveningScore: number | null;
+  combinedScore: number | null;
+  expectedRainMm: number | null;
+  peakGustKmh: number | null;
+  hasThunderstorm: boolean;
+  confidence: 'tinggi' | 'sederhana' | 'rendah';
   isPreferred: boolean;
   isRecommended: boolean;
 }
 
-const DAY_NAMES = [
-  'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday',
-];
+const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
-/** Format a local JS Date as "YYYY-MM-DD" using device local time. */
 export function toLocalDateStr(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -34,99 +44,163 @@ export function toLocalDateStr(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-/**
- * Returns the next 5 weekdays starting from today (inclusive).
- * Always stays within the Open-Meteo 7-day window.
- */
-export function getRollingWeekdays(today: Date): Date[] {
+/** A Date whose local fields represent the current clock in Malaysia. */
+export function malaysiaNow(date = new Date()): Date {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value ?? 0);
+  return new Date(value('year'), value('month') - 1, value('day'), value('hour'), value('minute'), value('second'));
+}
+
+export function timeToMinutes(value: string): number {
+  const [hours, minutes] = value.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+export function isValidTimeWindow(start: string, end: string): boolean {
+  return /^\d{2}:\d{2}$/.test(start) && /^\d{2}:\d{2}$/.test(end) && timeToMinutes(end) > timeToMinutes(start);
+}
+
+/** Five actionable weekdays. Today is skipped once the morning commute has ended. */
+export function getRollingWeekdays(today: Date, includeToday = true): Date[] {
   const weekdays: Date[] = [];
   const base = new Date(today);
   base.setHours(0, 0, 0, 0);
+  const firstOffset = includeToday ? 0 : 1;
 
-  for (let i = 0; weekdays.length < 5 && i < 14; i++) {
-    const d = new Date(base);
-    d.setDate(base.getDate() + i);
-    const dow = d.getDay();
-    if (dow !== 0 && dow !== 6) weekdays.push(d);
+  for (let i = firstOffset; weekdays.length < 5 && i < 14; i++) {
+    const date = new Date(base);
+    date.setDate(base.getDate() + i);
+    if (date.getDay() !== 0 && date.getDay() !== 6) weekdays.push(date);
   }
   return weekdays;
 }
 
-/**
- * Averages precipitation probability across the given time window on a specific date.
- * Open-Meteo time strings are in format "2026-02-24T08:00" (local KL time).
- * Uses hour-level precision (start inclusive, end exclusive).
- */
-export function extractWindowAverage(
-  hourlyData: WeatherData,
-  date: Date,
-  startTime: string, // "08:00"
-  endTime: string,   // "09:00"
-): number {
-  const dateStr = toLocalDateStr(date);
-  const startH = parseInt(startTime.slice(0, 2), 10);
-  const endH = parseInt(endTime.slice(0, 2), 10);
-
-  const probs: number[] = [];
-  hourlyData.hourly.time.forEach((t, i) => {
-    if (t.slice(0, 10) !== dateStr) return;
-    const hour = parseInt(t.slice(11, 13), 10);
-    if (hour >= startH && hour < endH) {
-      probs.push(hourlyData.hourly.precipitation_probability[i]);
-    }
-  });
-
-  if (probs.length === 0) return 0;
-  return probs.reduce((a, b) => a + b, 0) / probs.length;
+function emptyAssessment(): WindowAssessment {
+  return { available: false, averageProbability: null, peakProbability: null, precipitationMm: null, peakGustKmh: null, hasThunderstorm: false, riskScore: null };
 }
 
-/** Score all 5 rolling weekdays. isRecommended is set to false; call getRecommendedDays next. */
-export function scoreDays(
-  homeWeather: WeatherData,
-  officeWeather: WeatherData,
-  config: UserConfig,
-): ScoredDay[] {
-  const weekdays = getRollingWeekdays(new Date());
+/** Weight preceding-hour forecast buckets by their exact overlap with the configured window. */
+export function assessRouteWindow(routeWeather: WeatherData[], date: Date, startTime: string, endTime: string): WindowAssessment {
+  if (routeWeather.length === 0 || !isValidTimeWindow(startTime, endTime)) return emptyAssessment();
+  const dateStr = toLocalDateStr(date);
+  const windowStart = timeToMinutes(startTime);
+  const windowEnd = timeToMinutes(endTime);
+  const windowDuration = windowEnd - windowStart;
+
+  const pointAssessments = routeWeather.map((weather) => {
+    let probabilityWeight = 0;
+    let weightedProbability = 0;
+    let peakProbability = -1;
+    let precipitationMm = 0;
+    let peakGustKmh = -1;
+    let hasThunderstorm = false;
+
+    weather.hourly.time.forEach((time, index) => {
+      if (time.slice(0, 10) !== dateStr) return;
+      const bucketEnd = Number(time.slice(11, 13)) * 60 + Number(time.slice(14, 16));
+      const overlap = Math.max(0, Math.min(windowEnd, bucketEnd) - Math.max(windowStart, bucketEnd - 60));
+      if (overlap <= 0) return;
+      const probability = weather.hourly.precipitation_probability[index];
+      if (typeof probability !== 'number' || !Number.isFinite(probability)) return;
+      probabilityWeight += overlap;
+      weightedProbability += probability * overlap;
+      peakProbability = Math.max(peakProbability, probability);
+      precipitationMm += (weather.hourly.precipitation?.[index] ?? 0) * (overlap / 60);
+      peakGustKmh = Math.max(peakGustKmh, weather.hourly.wind_gusts_10m?.[index] ?? -1);
+      hasThunderstorm ||= (weather.hourly.weather_code?.[index] ?? 0) >= 95;
+    });
+
+    if (probabilityWeight < windowDuration * 0.75 || peakProbability < 0) return null;
+    return { averageProbability: weightedProbability / probabilityWeight, peakProbability, precipitationMm, peakGustKmh: peakGustKmh >= 0 ? peakGustKmh : null, hasThunderstorm };
+  });
+
+  if (pointAssessments.some((assessment) => assessment === null)) return emptyAssessment();
+  const valid = pointAssessments.filter((assessment): assessment is NonNullable<typeof assessment> => assessment !== null);
+  const averageProbability = Math.max(...valid.map((assessment) => assessment.averageProbability));
+  const peakProbability = Math.max(...valid.map((assessment) => assessment.peakProbability));
+  const precipitationMm = Math.max(...valid.map((assessment) => assessment.precipitationMm));
+  const gusts = valid.map((assessment) => assessment.peakGustKmh).filter((gust): gust is number => gust !== null);
+  const peakGustKmh = gusts.length > 0 ? Math.max(...gusts) : null;
+  const hasThunderstorm = valid.some((assessment) => assessment.hasThunderstorm);
+
+  let riskScore = peakProbability * 0.65 + averageProbability * 0.35;
+  if (precipitationMm >= 2) riskScore = Math.max(riskScore, 80);
+  else if (precipitationMm >= 0.5) riskScore = Math.max(riskScore, 60);
+  if (peakGustKmh !== null && peakGustKmh >= 40) riskScore = Math.max(riskScore, 70);
+  if (hasThunderstorm) riskScore = Math.max(riskScore, 90);
+
+  return { available: true, averageProbability, peakProbability, precipitationMm, peakGustKmh, hasThunderstorm, riskScore: Math.min(100, riskScore) };
+}
+
+export function extractWindowAverage(hourlyData: WeatherData, date: Date, startTime: string, endTime: string): number | null {
+  return assessRouteWindow([hourlyData], date, startTime, endTime).averageProbability;
+}
+
+export function scoreDays(routeWeather: WeatherData[], config: UserConfig, now = malaysiaNow()): ScoredDay[] {
+  const includeToday = now.getDay() !== 0 && now.getDay() !== 6
+    ? now.getHours() * 60 + now.getMinutes() < timeToMinutes(config.morningWindow.end)
+    : true;
+  const weekdays = getRollingWeekdays(now, includeToday);
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
   return weekdays.map((date) => {
+    const morning = assessRouteWindow(routeWeather, date, config.morningWindow.start, config.morningWindow.end);
+    const evening = assessRouteWindow(routeWeather, date, config.eveningWindow.start, config.eveningWindow.end);
+    const available = morning.riskScore !== null && evening.riskScore !== null;
+    const combinedScore = available
+      ? Math.max(morning.riskScore!, evening.riskScore!) * 0.75 + Math.min(morning.riskScore!, evening.riskScore!) * 0.25
+      : null;
+    const daysAway = Math.round((date.getTime() - todayMidnight) / 86_400_000);
+    const confidence = daysAway <= 1 ? 'tinggi' : daysAway <= 3 ? 'sederhana' : 'rendah';
     const dayName = DAY_NAMES[date.getDay()];
-    const morningScore = extractWindowAverage(
-      homeWeather, date, config.morningWindow.start, config.morningWindow.end,
-    );
-    const eveningScore = extractWindowAverage(
-      officeWeather, date, config.eveningWindow.start, config.eveningWindow.end,
-    );
+
     return {
       date,
       dateStr: toLocalDateStr(date),
       dayName,
-      morningScore,
-      eveningScore,
-      combinedScore: (morningScore + eveningScore) / 2,
+      morningScore: morning.peakProbability,
+      eveningScore: evening.peakProbability,
+      combinedScore,
+      expectedRainMm: morning.precipitationMm === null || evening.precipitationMm === null ? null : Math.max(morning.precipitationMm, evening.precipitationMm),
+      peakGustKmh: morning.peakGustKmh === null && evening.peakGustKmh === null ? null : Math.max(morning.peakGustKmh ?? 0, evening.peakGustKmh ?? 0),
+      hasThunderstorm: morning.hasThunderstorm || evening.hasThunderstorm,
+      confidence,
       isPreferred: config.preferredDays.includes(dayName),
       isRecommended: false,
     };
   });
 }
 
-/**
- * Marks the top-N days as recommended.
- * Preferred days fill slots first (ranked by score); non-preferred fill any remaining gap.
- */
-export function getRecommendedDays(
-  scoredDays: ScoredDay[],
-  count: number,
-  preferredDays: string[],
-): ScoredDay[] {
-  const byScore = (a: ScoredDay, b: ScoredDay) => a.combinedScore - b.combinedScore;
-
-  const preferred = scoredDays.filter((d) => preferredDays.includes(d.dayName)).sort(byScore);
-  const nonPreferred = scoredDays.filter((d) => !preferredDays.includes(d.dayName)).sort(byScore);
-
+export function getRecommendedDays(scoredDays: ScoredDay[], count: number, preferredDays: string[]): ScoredDay[] {
+  const available = scoredDays.filter((day) => day.combinedScore !== null);
+  const byScore = (a: ScoredDay, b: ScoredDay) => a.combinedScore! - b.combinedScore!;
+  const preferred = available.filter((day) => preferredDays.includes(day.dayName)).sort(byScore);
+  const nonPreferred = available.filter((day) => !preferredDays.includes(day.dayName)).sort(byScore);
   const recommended = new Set([
-    ...preferred.slice(0, count).map((d) => d.dateStr),
-    ...nonPreferred.slice(0, Math.max(0, count - preferred.length)).map((d) => d.dateStr),
+    ...preferred.slice(0, count).map((day) => day.dateStr),
+    ...nonPreferred.slice(0, Math.max(0, count - preferred.length)).map((day) => day.dateStr),
   ]);
+  return scoredDays.map((day) => ({ ...day, isRecommended: recommended.has(day.dateStr) }));
+}
 
-  return scoredDays.map((d) => ({ ...d, isRecommended: recommended.has(d.dateStr) }));
+export function getRouteHourly(routeWeather: WeatherData[], dateStr: string): RouteHour[] {
+  const times = routeWeather[0]?.hourly.time ?? [];
+  return times.flatMap((time, index) => {
+    if (time.slice(0, 10) !== dateStr) return [];
+    const probabilities = routeWeather.map((weather) => weather.hourly.precipitation_probability[index]).filter((value): value is number => typeof value === 'number');
+    const precipitation = routeWeather.map((weather) => weather.hourly.precipitation?.[index] ?? 0);
+    const gusts = routeWeather.map((weather) => weather.hourly.wind_gusts_10m?.[index]).filter((value): value is number => typeof value === 'number');
+    const codes = routeWeather.map((weather) => weather.hourly.weather_code?.[index]).filter((value): value is number => typeof value === 'number');
+    return [{
+      time,
+      hour: Number(time.slice(11, 13)),
+      probability: probabilities.length === routeWeather.length ? Math.max(...probabilities) : null,
+      precipitationMm: Math.max(...precipitation),
+      gustKmh: gusts.length ? Math.max(...gusts) : null,
+      weatherCode: codes.length ? Math.max(...codes) : null,
+    }];
+  });
 }

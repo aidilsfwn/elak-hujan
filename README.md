@@ -4,9 +4,9 @@ A mobile-first PWA that helps Malaysian scooter commuters pick the best office d
 
 ## Features
 
-- **Weekly View** — next 5 working days ranked by rain risk across morning and evening commute windows
-- **Leave Advisor** — optimal departure time within your evening commute window, with MET Malaysia's official daily forecast (Pagi / Petang / Malam) shown alongside
-- **MET Malaysia Warnings** — weather warning banners sourced from data.gov.my, dismissible per session
+- **Weekly View** — next 5 actionable working days ranked using the highest risk across five points on the commute route
+- **Leave Advisor** — lowest-risk future departure time, considering rain probability, amount, thunderstorms and gusts along the route
+- **MET Malaysia Context** — nearest-town official daily forecast plus route-area land warnings; unrelated and “No Advisory” records are excluded
 - **PWA** — installable on any mobile home screen
 
 ## Setup
@@ -48,10 +48,12 @@ The `netlify/edge-functions/met-proxy.ts` Edge Function proxies all MET Malaysia
 
 | Source | Purpose | Cache |
 |--------|---------|-------|
-| [Open-Meteo](https://open-meteo.com) | Hourly rain probability forecasts | 60 min |
+| [Open-Meteo](https://open-meteo.com) | Route-sampled hourly rain, weather code and gust forecasts | 10 min |
 | [api.met.gov.my](https://api.met.gov.my) | Official daily forecast per state (Pagi/Petang/Malam) | 5 min |
 | [api.data.gov.my](https://api.data.gov.my) | MET Malaysia weather warnings | 30 min |
-| [Nominatim](https://nominatim.openstreetmap.org) | Location search (onboarding only) | — |
+| [Nominatim](https://nominatim.openstreetmap.org) | Explicit location search (no autocomplete; rate-limited) | — |
+
+Forecast responses are intentionally not stored for offline use: expired weather must never be presented as a fresh recommendation.
 
 ## Tech Stack
 

@@ -12,7 +12,15 @@ export interface NominatimResult {
   };
 }
 
-export async function searchLocations(query: string): Promise<NominatimResult[]> {
+let lastRequestAt = 0;
+
+export async function searchLocations(query: string, signal?: AbortSignal): Promise<NominatimResult[]> {
+  const waitMs = Math.max(0, 1000 - (Date.now() - lastRequestAt));
+  if (waitMs > 0) await new Promise<void>((resolve, reject) => {
+    const timer = globalThis.setTimeout(resolve, waitMs);
+    signal?.addEventListener('abort', () => { globalThis.clearTimeout(timer); reject(new DOMException('Aborted', 'AbortError')); }, { once: true });
+  });
+  lastRequestAt = Date.now();
   const params = new URLSearchParams({
     q: query,
     format: 'json',
@@ -24,10 +32,8 @@ export async function searchLocations(query: string): Promise<NominatimResult[]>
   const res = await fetch(
     `https://nominatim.openstreetmap.org/search?${params}`,
     {
-      headers: {
-        'Accept-Language': 'ms,en',
-        'User-Agent': 'ElakHujan/1.0 (rain planner for Malaysian riders)',
-      },
+      headers: { 'Accept-Language': 'ms,en' },
+      signal,
     },
   );
 

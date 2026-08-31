@@ -18,7 +18,7 @@ export function WarningAlert({ inset = false }: { inset?: boolean }) {
 
   return <AnimatePresence initial={false}>{visible && <motion.aside className={`warning-ribbon ${inset ? 'is-inset' : ''}`} initial={{ opacity: 0, y: -18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }} transition={{ duration: .2 }} aria-label="Amaran cuaca rasmi">
     <AlertTriangle aria-hidden="true" />
-    <div className="warning-copy"><span>Amaran MET Malaysia</span><strong>{warnings[0].heading_bm ?? warnings[0].heading_en}</strong>{open && <p>{warnings[0].text_bm ?? warnings[0].text_en}</p>}{open && warnings.slice(1).map((item, index) => <p key={index}><strong>{item.heading_bm ?? item.heading_en}</strong><br />{item.text_bm ?? item.text_en}</p>)}{warnings.length > 1 && <button onClick={() => setOpen((value) => !value)}>{open ? 'Ringkaskan' : `${warnings.length} amaran`}<ChevronDown className={open ? 'is-open' : ''} /></button>}</div>
+    <div className="warning-copy"><span>Amaran MET untuk kawasan laluan</span><strong>{warnings[0].heading_bm ?? warnings[0].heading_en}</strong>{open && <p>{warnings[0].text_bm ?? warnings[0].text_en}</p>}{open && warnings.slice(1).map((item, index) => <p key={index}><strong>{item.heading_bm ?? item.heading_en}</strong><br />{item.text_bm ?? item.text_en}</p>)}{warnings.length > 1 && <button onClick={() => setOpen((value) => !value)}>{open ? 'Ringkaskan' : `${warnings.length} amaran berkaitan`}<ChevronDown className={open ? 'is-open' : ''} /></button>}</div>
     <button className="warning-close" onClick={dismiss} aria-label="Tutup amaran"><X /></button>
   </motion.aside>}</AnimatePresence>;
 }

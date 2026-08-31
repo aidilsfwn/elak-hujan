@@ -144,7 +144,21 @@ svg { width: 1em; height: 1em; }
 .weekly-side { display:flex; flex-direction:column; gap:16px; }
 .week-mini-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .week-mini { position:relative; min-height:164px; display:block; overflow:hidden; padding:15px; border:1px solid var(--line); border-radius:21px; background:var(--soft); }.week-mini > .risk-pin { position:absolute; left:0; top:0; bottom:0; width:4px; }.week-mini header { display:flex; justify-content:space-between; color:var(--muted); font-size:9px; }.week-mini header em { color:var(--risk); font-style:normal; font-weight:800; }.week-mini h3 { margin:12px 0 19px; font-size:18px; letter-spacing:-.035em; }.week-mini > div { display:grid; grid-template-columns:repeat(2,1fr); }.week-mini p { margin:0; }.week-mini p span { display:block; color:var(--muted); font-size:9px; text-transform:uppercase; }.week-mini p strong { display:block; margin-top:5px; font-family:"SFMono-Regular",ui-monospace,monospace; font-size:17px; letter-spacing:-.05em; }
-.week-live-strip { display:flex; margin-top:16px; border-block:1px solid var(--line); }.week-live-strip > * { min-width:0; flex:1; display:grid; grid-template-columns:auto 1fr auto; column-gap:9px; align-items:center; padding:17px 4px; }.week-live-strip > *+* { border-left:1px solid var(--line); padding-left:18px; }.week-live-strip .risk-pin { width:7px; height:7px; border-radius:50%; grid-row:1/3; }.week-live-strip span { font-size:10px; font-weight:750; text-transform:uppercase; }.week-live-strip strong { font-family:"SFMono-Regular",ui-monospace,monospace; font-size:17px; }.week-live-strip small { grid-column:2/4; color:var(--muted); font-size:10px; }.week-live-strip svg { width:14px; height:14px; }
+.week-live-cards { display:grid; gap:12px; margin-top:16px; }
+.week-live-card { min-width:0; min-height:174px; display:flex; flex-direction:column; padding:19px; overflow:hidden; border:1px solid var(--line); border-radius:24px; background:var(--soft); }
+.week-live-card header { display:grid; grid-template-columns:auto 1fr auto; gap:9px; align-items:center; color:var(--muted); font-size:9px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+.week-live-icon { width:30px; height:30px; display:grid; place-items:center; border-radius:10px; background:color-mix(in srgb,var(--risk) 12%,var(--solid)); color:var(--risk); }
+.week-live-icon svg { width:14px; height:14px; }
+.week-live-card .risk-pin { width:7px; height:7px; border-radius:50%; box-shadow:0 0 0 4px color-mix(in srgb,var(--risk) 12%,transparent); }
+.week-live-value { display:flex; align-items:end; justify-content:space-between; gap:14px; margin:25px 0 20px; }
+.week-live-value strong { min-width:0; font-size:25px; line-height:1.05; letter-spacing:-.045em; }
+.week-live-value span { flex:0 0 auto; color:var(--risk); font-family:"SFMono-Regular","Roboto Mono",ui-monospace,monospace; font-size:14px; font-weight:750; font-variant-numeric:tabular-nums; }
+.week-live-card footer { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:auto; padding-top:13px; border-top:1px solid var(--line); color:var(--muted); font-size:10px; line-height:1.4; }
+.week-live-card.is-unavailable { --risk:var(--muted); }
+.week-leave-card { transition:transform .18s ease,border-color .18s ease,background-color .18s ease; }
+.week-leave-card:active { transform:scale(.985); }
+.week-live-arrow { width:28px; height:28px; display:grid; flex:0 0 auto; place-items:center; border-radius:50%; background:var(--ink); color:var(--paper); }
+.week-live-arrow svg { width:13px; height:13px; }
 
 /* Settings */
 .settings-page { padding:32px 20px 110px; }
@@ -209,7 +223,7 @@ svg { width: 1em; height: 1em; }
   .context-column { display:flex; min-width:0; flex-direction:column; gap:18px; padding:0; }.context-week { display:block; }.context-column .official-forecast { margin-top:auto; }
 
   .weekly-page { max-width:1500px; margin:0 auto; padding:45px 40px 60px; }.weekly-heading h1,.settings-heading h1 { font-size:52px; }.weekly-page > .warning-ribbon { margin-bottom:22px; }
-  .weekly-composition { grid-template-columns:minmax(0,1.25fr) minmax(300px,.9fr); gap:22px; }.week-lead { min-height:620px; padding:34px; }.week-lead-copy { margin-top:84px; }.week-lead-copy h2 { font-size:clamp(72px,7vw,108px); }.week-lead-copy p { font-size:24px; }.week-lead-measures { margin-top:74px; }.week-lead-measures strong { font-size:44px; }.week-lead footer { left:38px; right:34px; bottom:30px; }.week-mini-grid { gap:14px; }.week-mini { min-height:205px; padding:19px; }.week-mini h3 { margin-top:18px; font-size:22px; }.week-mini p strong { font-size:20px; }.official-forecast.is-condensed { flex:1; display:flex; flex-direction:column; justify-content:center; }.week-live-strip { width:calc(100% - min(42%,500px)); }
+  .weekly-composition { grid-template-columns:minmax(0,1.25fr) minmax(300px,.9fr); gap:22px; }.week-lead { min-height:620px; padding:34px; }.week-lead-copy { margin-top:84px; }.week-lead-copy h2 { font-size:clamp(72px,7vw,108px); }.week-lead-copy p { font-size:24px; }.week-lead-measures { margin-top:74px; }.week-lead-measures strong { font-size:44px; }.week-lead footer { left:38px; right:34px; bottom:30px; }.week-mini-grid { gap:14px; }.week-mini { min-height:205px; padding:19px; }.week-mini h3 { margin-top:18px; font-size:22px; }.week-mini p strong { font-size:20px; }.official-forecast.is-condensed { flex:1; display:flex; flex-direction:column; justify-content:center; }.week-live-cards { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin-top:22px; }.week-live-card { min-height:190px; padding:22px; }.week-live-value strong { font-size:30px; }
 
   .settings-page { max-width:1450px; margin:0 auto; padding:50px 40px 70px; }.settings-layout { grid-template-columns:minmax(0,1fr) 300px; gap:50px; margin-top:60px; }.settings-location-grid,.time-setting-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.settings-section { padding:38px 0; }.settings-section > header { grid-template-columns:48px 1fr; }.settings-section h2 { font-size:24px; }.settings-section header p { font-size:13px; }.settings-aside { position:sticky; top:40px; align-self:start; }.threshold-panel { padding:30px; }.threshold-panel > strong { font-size:80px; }
 
@@ -224,3 +238,29 @@ svg { width: 1em; height: 1em; }
 }
 
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms!important; transition-duration:.01ms!important; scroll-behavior:auto!important; } }
+
+/* Trust and accuracy affordances */
+.official-scope { margin:16px 0 0; padding-top:13px; border-top:1px solid var(--line); color:var(--muted); font-size:9px; line-height:1.5; }
+.week-mini .confidence-note { position:absolute; left:15px; bottom:12px; color:var(--muted); font-size:8px; text-transform:capitalize; }
+.week-lead-copy > small { display:block; margin-top:12px; color:var(--muted); font-size:10px; text-transform:capitalize; }
+.place-search input { padding-right:78px; }
+.place-search > button { position:absolute; z-index:2; right:5px; top:5px; height:36px; padding:0 12px; border:0; border-radius:9px; background:var(--ink); color:var(--paper); font-size:10px; font-weight:750; }
+.place-search > button:disabled { opacity:.55; }
+.field-error { margin:6px 0 0; color:var(--high); font-size:10px; }
+.osm-credit { display:block; margin-top:7px; color:var(--muted); font-size:8px; line-height:1.4; }
+.settings-save:disabled { cursor:not-allowed; opacity:.42; }
+.settings-errors { margin-top:20px; padding:13px 16px; border:1px solid color-mix(in srgb,var(--high) 35%,transparent); border-radius:14px; color:var(--high); font-size:11px; }
+.settings-errors p { margin:3px 0; }
+.day-method { display:block; max-width:520px; margin-top:16px; color:var(--muted); font-size:10px; line-height:1.5; }
+.day-hour-plot > div.is-morning { background:color-mix(in srgb,#3da6fe 8%,transparent); }
+.day-hour-plot > div.is-evening { background:color-mix(in srgb,#d98a2b 10%,transparent); }
+.day-chart-legend { display:flex; flex-wrap:wrap; gap:12px; color:var(--muted); font-size:9px; }
+.day-chart-legend span::before { content:""; display:inline-block; width:8px; height:8px; margin-right:5px; border-radius:2px; background:var(--line); }
+.day-chart-legend .is-morning::before { background:#3da6fe; }
+.day-chart-legend .is-evening::before { background:#d98a2b; }
+
+@media (max-width:1023px) {
+  .week-lead { min-height:465px; }
+  .week-lead-measures { margin-top:42px; }
+  .week-lead-measures small { display:block; line-height:1.4; white-space:nowrap; }
+}
