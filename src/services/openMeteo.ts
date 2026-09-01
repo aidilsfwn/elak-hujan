@@ -23,7 +23,8 @@ export async function fetchRouteForecast(points: ForecastPoint[]): Promise<Weath
     hourly: 'precipitation_probability,precipitation,showers,weather_code,temperature_2m,wind_gusts_10m,visibility',
     current: 'temperature_2m,precipitation,rain,showers,weather_code,wind_gusts_10m',
     timezone: 'Asia/Kuala_Lumpur',
-    forecast_days: '10',
+    // Covers the remaining days of this calendar week and all of next week.
+    forecast_days: '14',
   });
 
   const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);

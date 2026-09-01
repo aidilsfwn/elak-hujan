@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { ArrowRight, Clock3, House, RefreshCw } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { OfficialForecast } from '@/components/OfficialForecast';
+import { AttendanceProgress } from '@/components/AttendanceProgress';
 import { WarningAlert } from '@/components/WarningAlert';
 import { useConfig } from '@/hooks/useConfig';
 import { useDayRecommendation } from '@/hooks/useDayRecommendation';
@@ -9,11 +11,20 @@ import { useLeaveAdvisorVisible } from '@/hooks/useLeaveAdvisorVisible';
 import { useNowcast } from '@/hooks/useNowcast';
 import { useWeather } from '@/hooks/useWeather';
 import { getRecommendedLeaveTime } from '@/lib/leaveAdvisor';
-import { malaysiaNow, toLocalDateStr, type ScoredDay } from '@/lib/rainScoring';
+import { getWeekKey, malaysiaNow, toLocalDateStr, type ScoredDay } from '@/lib/rainScoring';
 import { getRiskLevel, getVerdict, riskLabel } from '@/lib/risk';
 
 const names: Record<string, string> = { monday: 'Isnin', tuesday: 'Selasa', wednesday: 'Rabu', thursday: 'Khamis', friday: 'Jumaat' };
 const probability = (value: number | null) => value === null ? '—' : `${Math.round(value)}%`;
+
+function weekRange(days: ScoredDay[]) {
+  if (!days.length) return '';
+  const first = days[0].date;
+  const last = days.at(-1)!.date;
+  const sameMonth = first.getMonth() === last.getMonth();
+  const start = first.toLocaleDateString('ms-MY', { day: 'numeric', ...(sameMonth ? {} : { month: 'short' }) });
+  return `${start}–${last.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' })}`;
+}
 
 function SmallDay({ day, threshold, index }: { day: ScoredDay; threshold: number; index: number }) {
   const risk = getRiskLevel(day.combinedScore ?? 100, threshold);
@@ -28,6 +39,7 @@ function SmallDay({ day, threshold, index }: { day: ScoredDay; threshold: number
 }
 
 export function Weekly() {
+  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
   const { config } = useConfig();
   const recommendation = useDayRecommendation();
   const weather = useWeather();
@@ -35,11 +47,24 @@ export function Weekly() {
   const official = useNowcast(config?.officeLocation);
   if (!config) return null;
 
-  const availableDays = recommendation.days.filter((day) => day.combinedScore !== null);
+  const now = malaysiaNow();
+  const currentWeekKey = getWeekKey(now);
+  const weekMap = new Map<string, ScoredDay[]>();
+  recommendation.days.forEach((day) => {
+    const key = getWeekKey(day.date);
+    weekMap.set(key, [...(weekMap.get(key) ?? []), day]);
+  });
+  const weeks = [...weekMap.entries()].map(([key, days]) => ({ key, days }));
+  const activeWeekKey = selectedWeek && weekMap.has(selectedWeek)
+    ? selectedWeek
+    : weekMap.has(currentWeekKey) ? currentWeekKey : weeks[0]?.key;
+  const activeWeek = weeks.find((week) => week.key === activeWeekKey);
+  const activeWeekLabel = activeWeekKey === currentWeekKey ? 'minggu ini' : 'minggu depan';
+  const activeDays = activeWeek?.days ?? [];
+  const availableDays = activeDays.filter((day) => day.combinedScore !== null);
   const recommendedDays = availableDays.filter((day) => day.isRecommended).sort((a, b) => a.combinedScore! - b.combinedScore!);
   const lead = recommendedDays[0] ?? availableDays[0];
-  const following = recommendation.days.filter((day) => day.dateStr !== lead?.dateStr);
-  const now = malaysiaNow();
+  const following = activeDays.filter((day) => day.dateStr !== lead?.dateStr);
   const current = weather.homeWeather?.current;
   const currentRain = current?.precipitation ?? null;
   const currentCode = current?.weather_code ?? 0;
@@ -52,17 +77,31 @@ export function Weekly() {
   const leadIsToday = lead?.dateStr === toLocalDateStr(now);
 
   return <div className="weekly-page">
-    <header className="weekly-heading"><div><span>Rancangan lima hari</span><h1>Minggu yang lebih kering.</h1></div><button onClick={recommendation.refetch} aria-label="Muat semula"><RefreshCw className={recommendation.isFetching ? 'is-spinning' : ''} /></button></header>
+    <header className="weekly-heading"><div><span>Rancangan mengikut minggu</span><h1>Minggu yang lebih kering.</h1></div><button onClick={recommendation.refetch} aria-label="Muat semula"><RefreshCw className={recommendation.isFetching ? 'is-spinning' : ''} /></button></header>
     <WarningAlert />
 
     {recommendation.isLoading && <div className="weekly-loading">Menyusun hari terbaik…</div>}
     {recommendation.isError && <div className="weekly-error"><span>Ramalan tidak dapat dimuatkan. Cadangan lama tidak digunakan.</span><button onClick={recommendation.refetch}>Cuba lagi</button></div>}
-    {!recommendation.isLoading && !recommendation.isError && availableDays.length === 0 && <div className="weekly-error">Data ramalan lengkap tidak tersedia untuk dinilai.</div>}
+    {!recommendation.isLoading && !recommendation.isError && recommendation.days.length === 0 && <div className="weekly-error">Data ramalan lengkap tidak tersedia untuk dinilai.</div>}
+
+    {weeks.length > 0 && <nav className="week-switcher" aria-label="Pilih minggu">{weeks.map((week) => {
+      const isCurrent = week.key === currentWeekKey;
+      const recommendedCount = week.days.filter((day) => day.isRecommended).length;
+      return <button key={week.key} type="button" className={week.key === activeWeekKey ? 'is-active' : ''} aria-pressed={week.key === activeWeekKey} onClick={() => setSelectedWeek(week.key)}>
+        <span>{isCurrent ? 'Minggu ini' : 'Minggu depan'}</span>
+        <strong>{weekRange(week.days)}</strong>
+        <small>{recommendedCount} hari disyorkan</small>
+      </button>;
+    })}</nav>}
+
+    {activeWeekKey === currentWeekKey && <AttendanceProgress target={config.officeDaysPerWeek} />}
+
+    {activeDays.length > 0 && availableDays.length === 0 && <div className="weekly-error">Data ramalan lengkap tidak tersedia untuk minggu ini.</div>}
 
     {lead && <div className="weekly-composition">
       <section className={`week-lead risk-${leadRisk}`}>
         <div className="week-lead-accent" />
-        <header><div><span>{leadIsToday ? 'Hari ini' : 'Risiko terendah'}</span><p>{lead.date.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</p></div>{lead.isRecommended && <em>Pilihan terbaik</em>}</header>
+        <header><div><span>{leadIsToday ? 'Hari ini' : 'Risiko terendah'}</span><p>{lead.date.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</p></div>{lead.isRecommended && <em>Pilihan terbaik {activeWeekLabel}</em>}</header>
         <div className="week-lead-copy"><h2>{names[lead.dayName]}</h2><p>{getVerdict(lead.combinedScore!, config.rainThreshold)}.</p><small>Skor {Math.round(lead.combinedScore!)} · keyakinan {lead.confidence}{lead.hasThunderstorm ? ' · ribut petir berpotensi' : ''}</small></div>
         <div className="week-lead-measures"><div><span>Laluan · pagi</span><strong>{probability(lead.morningScore)}</strong><small>Puncak {config.morningWindow.start}–{config.morningWindow.end}</small></div><div><span>Laluan · petang</span><strong>{probability(lead.eveningScore)}</strong><small>Puncak {config.eveningWindow.start}–{config.eveningWindow.end}</small></div></div>
         <footer><span className="risk-name">{riskLabel[leadRisk]}</span><Link to={`/day/${lead.dateStr}`}>Lihat setiap jam<ArrowRight /></Link></footer>

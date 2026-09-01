@@ -78,6 +78,39 @@ export function getRollingWeekdays(today: Date, includeToday = true): Date[] {
   return weekdays;
 }
 
+/** Remaining actionable weekdays in this calendar week, followed by next week. */
+export function getPlanningWeekdays(today: Date, includeToday = true): Date[] {
+  const base = new Date(today);
+  base.setHours(0, 0, 0, 0);
+  const day = base.getDay();
+  const daysUntilMonday = day === 0 ? 1 : 8 - day;
+  const nextMonday = new Date(base);
+  nextMonday.setDate(base.getDate() + daysUntilMonday);
+  const weekdays: Date[] = [];
+
+  // Keep past days out of the plan, but do not let the next calendar week get
+  // mixed into (or compete with) the remainder of this one.
+  for (let offset = includeToday ? 0 : 1; offset < daysUntilMonday; offset++) {
+    const date = new Date(base);
+    date.setDate(base.getDate() + offset);
+    if (date.getDay() !== 0 && date.getDay() !== 6) weekdays.push(date);
+  }
+  for (let offset = 0; offset < 5; offset++) {
+    const date = new Date(nextMonday);
+    date.setDate(nextMonday.getDate() + offset);
+    weekdays.push(date);
+  }
+  return weekdays;
+}
+
+/** Stable Monday date used to group recommendations by calendar week. */
+export function getWeekKey(date: Date): string {
+  const monday = new Date(date);
+  const day = monday.getDay();
+  monday.setDate(monday.getDate() - (day === 0 ? 6 : day - 1));
+  return toLocalDateStr(monday);
+}
+
 function emptyAssessment(): WindowAssessment {
   return { available: false, averageProbability: null, peakProbability: null, precipitationMm: null, peakGustKmh: null, hasThunderstorm: false, riskScore: null };
 }
@@ -143,7 +176,7 @@ export function scoreDays(routeWeather: WeatherData[], config: UserConfig, now =
   const includeToday = now.getDay() !== 0 && now.getDay() !== 6
     ? now.getHours() * 60 + now.getMinutes() < timeToMinutes(config.morningWindow.end)
     : true;
-  const weekdays = getRollingWeekdays(now, includeToday);
+  const weekdays = getPlanningWeekdays(now, includeToday);
   const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
   return weekdays.map((date) => {
@@ -174,15 +207,27 @@ export function scoreDays(routeWeather: WeatherData[], config: UserConfig, now =
   });
 }
 
-export function getRecommendedDays(scoredDays: ScoredDay[], count: number, preferredDays: string[]): ScoredDay[] {
-  const available = scoredDays.filter((day) => day.combinedScore !== null);
+export function getRecommendedDays(scoredDays: ScoredDay[], count: number, preferredDays: string[], completedDates: string[] = []): ScoredDay[] {
   const byScore = (a: ScoredDay, b: ScoredDay) => a.combinedScore! - b.combinedScore!;
-  const preferred = available.filter((day) => preferredDays.includes(day.dayName)).sort(byScore);
-  const nonPreferred = available.filter((day) => !preferredDays.includes(day.dayName)).sort(byScore);
-  const recommended = new Set([
-    ...preferred.slice(0, count).map((day) => day.dateStr),
-    ...nonPreferred.slice(0, Math.max(0, count - preferred.length)).map((day) => day.dateStr),
-  ]);
+  const completed = new Set(completedDates);
+  const weeks = new Map<string, ScoredDay[]>();
+  scoredDays.filter((day) => day.combinedScore !== null && !completed.has(day.dateStr)).forEach((day) => {
+    const key = getWeekKey(day.date);
+    weeks.set(key, [...(weeks.get(key) ?? []), day]);
+  });
+  const recommended = new Set<string>();
+  weeks.forEach((available, weekKey) => {
+    const completedInWeek = [...completed].filter((dateStr) => {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      return !Number.isNaN(date.getTime()) && getWeekKey(date) === weekKey;
+    }).length;
+    const remainingCount = Math.max(0, count - completedInWeek);
+    const preferred = available.filter((day) => preferredDays.includes(day.dayName)).sort(byScore);
+    const nonPreferred = available.filter((day) => !preferredDays.includes(day.dayName)).sort(byScore);
+    preferred.slice(0, remainingCount).forEach((day) => recommended.add(day.dateStr));
+    nonPreferred.slice(0, Math.max(0, remainingCount - preferred.length)).forEach((day) => recommended.add(day.dateStr));
+  });
   return scoredDays.map((day) => ({ ...day, isRecommended: recommended.has(day.dateStr) }));
 }
 

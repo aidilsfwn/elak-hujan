@@ -36,18 +36,28 @@ async function mockApis(page: Page) {
 }
 
 test('weekly and leave flows show route-aware, actionable advice', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-09-01T06:00:00.000Z'));
   await mockApis(page);
   await page.addInitScript((stored) => localStorage.setItem('elakhujan_config', JSON.stringify(stored)), config);
   await page.goto('/');
 
   await expect(page.getByText('Tiada Nasihat')).toHaveCount(0);
   await expect(page.getByText('Risiko terendah')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Minggu ini.*3 hari disyorkan/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText(/Adakah anda ke pejabat pada Isnin/)).toBeVisible();
+  await page.getByRole('button', { name: 'Ya, saya pergi' }).click();
+  await expect(page.getByText('Adakah anda ke pejabat hari ini?')).toBeVisible();
+  await page.getByRole('button', { name: 'Ya, saya pergi' }).click();
+  await expect(page.getByText('1 hari lagi diperlukan')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Minggu ini.*1 hari disyorkan/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.week-lead h2')).toHaveText('Rabu');
+  await page.getByRole('button', { name: /Minggu depan.*3 hari disyorkan/ }).click();
   await expect(page.locator('.week-lead h2')).toHaveText('Isnin');
   await expect(page.getByText('Keyakinan rendah', { exact: false }).first()).toBeVisible();
 
   await page.getByRole('link', { name: 'Sekarang', exact: true }).click();
-  await expect(page.getByText('20:00', { exact: true }).first()).toBeVisible();
-  await expect(page.locator('.hour-ribbon-values .is-selected')).toContainText('20:00');
+  await expect(page.getByText('16:00', { exact: true }).first()).toBeVisible();
+  await expect(page.locator('.hour-ribbon-values .is-selected')).toContainText('16:00');
   await expect(page.getByText('seluruh laluan', { exact: false })).toBeVisible();
 });
 
