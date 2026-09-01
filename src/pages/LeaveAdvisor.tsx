@@ -3,6 +3,7 @@ import { ChevronDown, RefreshCw } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { OfficialForecast } from '@/components/OfficialForecast';
 import { WarningAlert } from '@/components/WarningAlert';
+import { WeatherAtmosphere } from '@/components/WeatherAtmosphere';
 import { WeekRail } from '@/components/WeekRail';
 import { useConfig } from '@/hooks/useConfig';
 import { useDayRecommendation } from '@/hooks/useDayRecommendation';
@@ -41,6 +42,7 @@ export function LeaveAdvisor() {
     <div className="verdict-column">
       <section className="verdict-stage">
         <AnimatePresence mode="wait"><motion.div key={risk} className={`verdict-atmosphere tone-${risk}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .4, ease: 'easeInOut' }} /></AnimatePresence>
+        <WeatherAtmosphere risk={risk} thunderstorm={(selectedSlot?.weatherCode ?? 0) >= 95 || warnings.length > 0} variant="verdict" />
         <div className="verdict-stage-inner">
           <header className="verdict-meta"><div><span>Ramalan masa balik · seluruh laluan</span><strong>{config.officeLocation.name}</strong></div><button onClick={weather.refetch} aria-label="Muat semula ramalan"><RefreshCw className={weather.isFetching ? 'is-spinning' : ''} /></button></header>
           <WarningAlert inset />

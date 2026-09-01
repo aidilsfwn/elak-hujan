@@ -6,6 +6,7 @@ import { OfficialForecast } from '@/components/OfficialForecast';
 import { AttendanceProgress } from '@/components/AttendanceProgress';
 import { SmartBriefing } from '@/components/SmartBriefing';
 import { WarningAlert } from '@/components/WarningAlert';
+import { WeatherAtmosphere } from '@/components/WeatherAtmosphere';
 import { useConfig } from '@/hooks/useConfig';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useDayRecommendation } from '@/hooks/useDayRecommendation';
@@ -109,6 +110,7 @@ export function Weekly() {
     {lead && <div className="weekly-composition">
       <section className={`week-lead risk-${leadRisk}`}>
         <div className="week-lead-accent" />
+        <WeatherAtmosphere risk={leadRisk} thunderstorm={lead.hasThunderstorm} />
         <header><div><span>{leadIsToday ? 'Hari ini' : 'Risiko terendah'}</span><p>{lead.date.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</p></div>{lead.isRecommended && <em>Pilihan terbaik {activeWeekLabel}</em>}</header>
         <div className="week-lead-copy"><h2>{names[lead.dayName]}</h2><p>{getVerdict(lead.combinedScore!, config.rainThreshold)}.</p><small>Skor {Math.round(lead.combinedScore!)} · keyakinan {lead.confidence}{lead.hasThunderstorm ? ' · ribut petir berpotensi' : ''}</small></div>
         <div className="week-lead-measures"><div><span>Laluan · pagi</span><strong>{probability(lead.morningScore)}</strong><small>Puncak {config.morningWindow.start}–{config.morningWindow.end}</small></div><div><span>Laluan · petang</span><strong>{probability(lead.eveningScore)}</strong><small>Puncak {config.eveningWindow.start}–{config.eveningWindow.end}</small></div></div>
