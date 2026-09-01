@@ -50,6 +50,8 @@ test('weekly and leave flows show route-aware, actionable advice', async ({ page
   await page.getByRole('button', { name: 'Ya, saya pergi' }).click();
   await expect(page.getByText('1 hari lagi diperlukan')).toBeVisible();
   await expect(page.getByRole('button', { name: /Minggu ini.*1 hari disyorkan/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('heading', { name: '1 hari lagi untuk melengkapkan sasaran.' })).toBeVisible();
+  await expect(page.getByText(/tiada data dihantar/)).toBeVisible();
   await expect(page.locator('.week-lead h2')).toHaveText('Rabu');
   await page.getByRole('button', { name: /Minggu depan.*3 hari disyorkan/ }).click();
   await expect(page.locator('.week-lead h2')).toHaveText('Isnin');

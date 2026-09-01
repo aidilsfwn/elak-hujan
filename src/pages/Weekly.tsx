@@ -4,8 +4,10 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { OfficialForecast } from '@/components/OfficialForecast';
 import { AttendanceProgress } from '@/components/AttendanceProgress';
+import { SmartBriefing } from '@/components/SmartBriefing';
 import { WarningAlert } from '@/components/WarningAlert';
 import { useConfig } from '@/hooks/useConfig';
+import { useAttendance } from '@/hooks/useAttendance';
 import { useDayRecommendation } from '@/hooks/useDayRecommendation';
 import { useLeaveAdvisorVisible } from '@/hooks/useLeaveAdvisorVisible';
 import { useNowcast } from '@/hooks/useNowcast';
@@ -41,6 +43,7 @@ function SmallDay({ day, threshold, index }: { day: ScoredDay; threshold: number
 export function Weekly() {
   const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
   const { config } = useConfig();
+  const { attendance } = useAttendance();
   const recommendation = useDayRecommendation();
   const weather = useWeather();
   const showLeave = useLeaveAdvisorVisible();
@@ -59,11 +62,14 @@ export function Weekly() {
     ? selectedWeek
     : weekMap.has(currentWeekKey) ? currentWeekKey : weeks[0]?.key;
   const activeWeek = weeks.find((week) => week.key === activeWeekKey);
-  const activeWeekLabel = activeWeekKey === currentWeekKey ? 'minggu ini' : 'minggu depan';
+  const activeIsCurrentWeek = activeWeekKey === currentWeekKey;
+  const activeWeekLabel = activeIsCurrentWeek ? 'minggu ini' : 'minggu depan';
   const activeDays = activeWeek?.days ?? [];
   const availableDays = activeDays.filter((day) => day.combinedScore !== null);
   const recommendedDays = availableDays.filter((day) => day.isRecommended).sort((a, b) => a.combinedScore! - b.combinedScore!);
-  const lead = recommendedDays[0] ?? availableDays[0];
+  const rankedAvailableDays = [...availableDays].sort((a, b) => a.combinedScore! - b.combinedScore!);
+  const lead = recommendedDays[0] ?? rankedAvailableDays[0];
+  const completedThisWeek = Object.values(attendance.weeks[currentWeekKey]?.statuses ?? {}).filter((status) => status === 'office').length;
   const following = activeDays.filter((day) => day.dateStr !== lead?.dateStr);
   const current = weather.homeWeather?.current;
   const currentRain = current?.precipitation ?? null;
@@ -84,17 +90,19 @@ export function Weekly() {
     {recommendation.isError && <div className="weekly-error"><span>Ramalan tidak dapat dimuatkan. Cadangan lama tidak digunakan.</span><button onClick={recommendation.refetch}>Cuba lagi</button></div>}
     {!recommendation.isLoading && !recommendation.isError && recommendation.days.length === 0 && <div className="weekly-error">Data ramalan lengkap tidak tersedia untuk dinilai.</div>}
 
-    {weeks.length > 0 && <nav className="week-switcher" aria-label="Pilih minggu">{weeks.map((week) => {
-      const isCurrent = week.key === currentWeekKey;
-      const recommendedCount = week.days.filter((day) => day.isRecommended).length;
-      return <button key={week.key} type="button" className={week.key === activeWeekKey ? 'is-active' : ''} aria-pressed={week.key === activeWeekKey} onClick={() => setSelectedWeek(week.key)}>
-        <span>{isCurrent ? 'Minggu ini' : 'Minggu depan'}</span>
-        <strong>{weekRange(week.days)}</strong>
-        <small>{recommendedCount} hari disyorkan</small>
-      </button>;
-    })}</nav>}
-
-    {activeWeekKey === currentWeekKey && <AttendanceProgress target={config.officeDaysPerWeek} />}
+    {weeks.length > 0 && <section className={`weekly-planning ${activeIsCurrentWeek ? '' : 'is-next-week'}`} aria-label="Perancangan minggu">
+      <nav className="week-switcher" aria-label="Pilih minggu">{weeks.map((week) => {
+        const isCurrent = week.key === currentWeekKey;
+        const recommendedCount = week.days.filter((day) => day.isRecommended).length;
+        return <button key={week.key} type="button" className={week.key === activeWeekKey ? 'is-active' : ''} aria-pressed={week.key === activeWeekKey} onClick={() => setSelectedWeek(week.key)}>
+          <span>{isCurrent ? 'Minggu ini' : 'Minggu depan'}</span>
+          <strong>{weekRange(week.days)}</strong>
+          <small>{recommendedCount} hari disyorkan</small>
+        </button>;
+      })}</nav>
+      {activeIsCurrentWeek && <AttendanceProgress target={config.officeDaysPerWeek} />}
+      {activeDays.length > 0 && <SmartBriefing days={activeDays} target={config.officeDaysPerWeek} completed={activeIsCurrentWeek ? completedThisWeek : 0} isCurrentWeek={activeIsCurrentWeek} />}
+    </section>}
 
     {activeDays.length > 0 && availableDays.length === 0 && <div className="weekly-error">Data ramalan lengkap tidak tersedia untuk minggu ini.</div>}
 
