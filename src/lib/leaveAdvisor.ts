@@ -10,6 +10,7 @@ export interface HourlySlot {
   gustKmh: number | null;
   weatherCode: number | null;
   riskScore: number;
+  isNow?: boolean;
 }
 
 export interface LeaveRecommendation {
@@ -46,8 +47,16 @@ export function getRecommendedLeaveTime(
     if (item.hour === 0) return [];
     const departureHour = item.hour - 1;
     const slotMinutes = departureHour * 60;
-    if (slotMinutes < scanStart || slotMinutes >= scanEnd || slotMinutes < minimum || item.probability === null) return [];
-    const base = { time: `${String(departureHour).padStart(2, '0')}:00`, hour: departureHour, probability: item.probability, precipitationMm: item.precipitationMm, gustKmh: item.gustKmh, weatherCode: item.weatherCode };
+    const isNow = !!notBefore
+      && toLocalDateStr(notBefore) === toLocalDateStr(date)
+      && departureHour === notBefore.getHours()
+      && minimum >= scanStart
+      && minimum < scanEnd;
+    if (slotMinutes < scanStart || slotMinutes >= scanEnd || (slotMinutes < minimum && !isNow) || item.probability === null) return [];
+    const time = isNow
+      ? `${String(notBefore!.getHours()).padStart(2, '0')}:${String(notBefore!.getMinutes()).padStart(2, '0')}`
+      : `${String(departureHour).padStart(2, '0')}:00`;
+    const base = { time, hour: departureHour, probability: item.probability, precipitationMm: item.precipitationMm, gustKmh: item.gustKmh, weatherCode: item.weatherCode, isNow };
     return [{ ...base, riskScore: slotRisk(base) }];
   });
 
@@ -57,12 +66,17 @@ export function getRecommendedLeaveTime(
   return { recommendedTime: best.time, probability: best.probability, hasCleanWindow: best.riskScore < rainThreshold, slots };
 }
 
-export function getRollingSlots(routeWeather: WeatherData[], date: Date, fromHour: number, count = 4): HourlySlot[] {
-  return getRouteHourly(routeWeather, toLocalDateStr(date)).flatMap((item) => {
+export function getRollingSlots(routeWeather: WeatherData[], from: Date, count = 4): HourlySlot[] {
+  const fromHour = from.getHours();
+  return getRouteHourly(routeWeather, toLocalDateStr(from)).flatMap((item) => {
     if (item.hour === 0) return [];
     const departureHour = item.hour - 1;
     if (departureHour < fromHour || departureHour >= fromHour + count || item.probability === null) return [];
-    const base = { time: `${String(departureHour).padStart(2, '0')}:00`, hour: departureHour, probability: item.probability, precipitationMm: item.precipitationMm, gustKmh: item.gustKmh, weatherCode: item.weatherCode };
+    const isNow = departureHour === fromHour;
+    const time = isNow
+      ? `${String(fromHour).padStart(2, '0')}:${String(from.getMinutes()).padStart(2, '0')}`
+      : `${String(departureHour).padStart(2, '0')}:00`;
+    const base = { time, hour: departureHour, probability: item.probability, precipitationMm: item.precipitationMm, gustKmh: item.gustKmh, weatherCode: item.weatherCode, isNow };
     return [{ ...base, riskScore: slotRisk(base) }];
   });
 }

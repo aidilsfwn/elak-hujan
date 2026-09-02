@@ -127,7 +127,7 @@ export function Weekly() {
       </article>
       {showLeave && leave && <Link to="/leave" className={`week-live-card week-leave-card risk-${getRiskLevel(leaveSlot?.riskScore ?? 100, config.rainThreshold)}`}>
         <header><span className="week-live-icon"><Clock3 /></span><span>Cadangan masa balik</span><i className="risk-pin" /></header>
-        <div className="week-live-value"><strong>{leave.recommendedTime}</strong><span>{Math.round(leave.probability)}% hujan</span></div>
+        <div className="week-live-value"><strong>{leaveSlot?.isNow ? 'Sekarang' : leave.recommendedTime}</strong><span>{Math.round(leave.probability)}% hujan</span></div>
         <footer><span>{leave.hasCleanWindow ? 'Masa terawal di bawah had risiko' : 'Pilihan paling rendah risiko dalam tetingkap'}</span><i className="week-live-arrow"><ArrowRight /></i></footer>
       </Link>}
     </section>
