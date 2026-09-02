@@ -38,9 +38,31 @@ describe('leave advisor', () => {
 
   it('labels the current partial hour in the rolling forecast', () => {
     const now = new Date(2026, 8, 1, 17, 30);
-    const slots = getRollingSlots(route, now);
+    const slots = getRollingSlots(route, now, 40);
     expect(slots.map((slot) => slot.time)).toEqual(['17:30', '18:00', '19:00']);
     expect(slots[0].isNow).toBe(true);
+  });
+
+  it('prefers a non-hazardous fallback over a numerically lower hard-stop slot', () => {
+    const result = getRecommendedLeaveTime(
+      [weather(['2026-09-01T18:00', '2026-09-01T19:00'], [20, 80], { wind_gusts_10m: [40, 10] })],
+      new Date(2026, 8, 1),
+      { start: '17:00', end: '19:00' },
+      40,
+    );
+    expect(result?.recommendedTime).toBe('18:00');
+    expect(result?.slots[0].assessment.hardStop).toBe(true);
+    expect(result?.slots[1].assessment.hardStop).toBe(false);
+  });
+
+  it('does not mark heavy rain, thunderstorms, or strong gusts clean for rain-ready riders', () => {
+    const times = ['2026-09-01T18:00'];
+    const now = new Date(2026, 8, 1, 17, 30);
+    const heavy = getRecommendedLeaveTime([weather(times, [20], { precipitation: [2] })], now, { start: '17:00', end: '18:00' }, 55, now);
+    const thunder = getRecommendedLeaveTime([weather(times, [20], { weather_code: [95] })], now, { start: '17:00', end: '18:00' }, 55, now);
+    const gust = getRecommendedLeaveTime([weather(times, [20], { wind_gusts_10m: [40] })], now, { start: '17:00', end: '18:00' }, 55, now);
+    expect([heavy, thunder, gust].every((result) => result?.hasCleanWindow === false)).toBe(true);
+    expect([heavy, thunder, gust].every((result) => result?.slots[0].assessment.hardStop)).toBe(true);
   });
 
   it('returns null when no actionable forecast slot remains', () => {

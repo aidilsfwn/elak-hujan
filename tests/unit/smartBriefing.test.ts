@@ -3,7 +3,7 @@ import { buildSmartBriefing } from '@/lib/smartBriefing';
 import type { ScoredDay } from '@/lib/rainScoring';
 
 function day(dateStr: string, dayName: string, score: number, morning: number, evening: number, recommended = true): ScoredDay {
-  return { date: new Date(`${dateStr}T00:00:00`), dateStr, dayName, morningScore: morning, eveningScore: evening, combinedScore: score, expectedRainMm: 0, peakGustKmh: 10, hasThunderstorm: false, confidence: 'tinggi', isUnavailable: false, isRecommended: recommended };
+  return { date: new Date(`${dateStr}T00:00:00`), dateStr, dayName, morningScore: morning, eveningScore: evening, combinedScore: score, expectedRainMm: 0, peakGustKmh: 10, hasThunderstorm: false, hasHardHazard: false, confidence: 'tinggi', isUnavailable: false, isRecommended: recommended };
 }
 
 describe('smart weekly briefing', () => {

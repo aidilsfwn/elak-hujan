@@ -59,9 +59,9 @@ export const copy = {
     sectionLocation: "Lokasi",
     sectionCommute: "Waktu Perjalanan",
     sectionOfficeDays: "Hari Pejabat",
-    sectionRisk: "Had Risiko Hujan",
+    sectionRisk: "Toleransi Hujan",
     rainThresholdHelper: (value: number) =>
-      `Perjalanan dianggap berisiko apabila kebarangkalian hujan melebihi ${value}%.`,
+      `Perjalanan biasa dianggap berisiko apabila peluang hujan sama atau melebihi ${value}%. Bahaya cuaca tetap mengatasi toleransi.`,
     saveButton: "Simpan Tetapan",
     saved: "Disimpan!",
     resetTitle: "Set Semula Aplikasi",

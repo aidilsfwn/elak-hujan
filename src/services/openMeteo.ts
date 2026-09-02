@@ -31,7 +31,12 @@ export async function fetchRouteForecast(points: ForecastPoint[]): Promise<Weath
   if (!res.ok) throw new Error(`Open-Meteo error: ${res.status}`);
   const json = await res.json() as Omit<WeatherData, 'fetchedAt'> | Array<Omit<WeatherData, 'fetchedAt'>>;
   const results = Array.isArray(json) ? json : [json];
-  if (results.length !== points.length || results.some((item) => !item.hourly?.time?.length)) {
+  const incomplete = results.some((item) => {
+    if (!item.hourly?.time?.length) return true;
+    const length = item.hourly.time.length;
+    return [item.hourly.precipitation_probability, item.hourly.precipitation, item.hourly.showers, item.hourly.weather_code, item.hourly.wind_gusts_10m].some((values) => !values || values.length !== length);
+  });
+  if (results.length !== points.length || incomplete) {
     throw new Error('Open-Meteo returned incomplete route data');
   }
   const fetchedAt = Date.now();

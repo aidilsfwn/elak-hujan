@@ -12,10 +12,12 @@ import { useAttendance } from '@/hooks/useAttendance';
 import { useDayRecommendation } from '@/hooks/useDayRecommendation';
 import { useLeaveAdvisorVisible } from '@/hooks/useLeaveAdvisorVisible';
 import { useNowcast } from '@/hooks/useNowcast';
+import { useWarnings } from '@/hooks/useWarnings';
 import { useWeather } from '@/hooks/useWeather';
 import { getRecommendedLeaveTime } from '@/lib/leaveAdvisor';
 import { getWeekKey, malaysiaNow, toLocalDateStr, type ScoredDay } from '@/lib/rainScoring';
 import { getRiskLevel, getVerdict, riskLabel } from '@/lib/risk';
+import { assessWeather } from '@/lib/weatherAssessment';
 
 const names: Record<string, string> = { monday: 'Isnin', tuesday: 'Selasa', wednesday: 'Rabu', thursday: 'Khamis', friday: 'Jumaat' };
 const probability = (value: number | null) => value === null ? '—' : `${Math.round(value)}%`;
@@ -47,6 +49,7 @@ export function Weekly() {
   const { attendance } = useAttendance();
   const recommendation = useDayRecommendation();
   const weather = useWeather();
+  const { warnings } = useWarnings();
   const showLeave = useLeaveAdvisorVisible();
   const official = useNowcast(config?.officeLocation);
   if (!config) return null;
@@ -74,12 +77,18 @@ export function Weekly() {
   const following = activeDays.filter((day) => day.dateStr !== lead?.dateStr);
   const current = weather.homeWeather?.current;
   const currentRain = current?.precipitation ?? null;
-  const currentCode = current?.weather_code ?? 0;
-  const currentGust = current?.wind_gusts_10m ?? 0;
-  const currentRiskScore = currentRain === null ? 100 : Math.max(currentCode >= 95 ? 90 : 0, currentRain >= 2 ? 80 : currentRain > 0 ? 55 : 0, currentGust >= 40 ? 70 : 0);
-  const nowRisk = getRiskLevel(currentRiskScore, config.rainThreshold);
+  const currentRainRate = currentRain === null ? null : currentRain * (3600 / Math.max(1, current?.interval ?? 3600));
+  const currentBucketEnd = new Date(now);
+  currentBucketEnd.setMinutes(0, 0, 0);
+  currentBucketEnd.setHours(currentBucketEnd.getHours() + 1);
+  const currentBucketTime = `${toLocalDateStr(currentBucketEnd)}T${String(currentBucketEnd.getHours()).padStart(2, '0')}:00`;
+  const currentForecastIndex = weather.homeWeather?.hourly.time.indexOf(currentBucketTime) ?? -1;
+  const currentProbability = currentForecastIndex >= 0 ? weather.homeWeather?.hourly.precipitation_probability[currentForecastIndex] ?? null : null;
+  const currentAssessment = currentRain === null ? null : assessWeather({ probability: currentProbability, precipitationMm: currentRainRate, showersMm: current?.showers, gustKmh: current?.wind_gusts_10m ?? null, weatherCode: current?.weather_code ?? null, threshold: config.rainThreshold, warningActive: warnings.length > 0 });
+  const nowRisk = getRiskLevel(currentAssessment?.riskScore ?? 100, config.rainThreshold, currentAssessment?.hardReason === 'official-warning');
   const leave = weather.routeWeather.length ? getRecommendedLeaveTime(weather.routeWeather, now, config.eveningWindow, config.rainThreshold, now) : null;
   const leaveSlot = leave?.slots.find((slot) => slot.time === leave.recommendedTime);
+  const leaveHardStop = warnings.length > 0 || leaveSlot?.assessment.hardStop;
   const leadRisk = getRiskLevel(lead?.combinedScore ?? 100, config.rainThreshold);
   const leadIsToday = lead?.dateStr === toLocalDateStr(now);
 
@@ -122,13 +131,13 @@ export function Weekly() {
     <section className="week-live-cards" aria-label="Ringkasan semasa">
       <article className={`week-live-card ${currentRain === null ? 'is-unavailable' : `risk-${nowRisk}`}`}>
         <header><span className="week-live-icon"><House /></span><span>Sekarang · rumah</span><i className="risk-pin" /></header>
-        <div className="week-live-value"><strong>{currentRain === null ? 'Data tiada' : currentRain > 0 ? 'Hujan dikesan' : 'Tiada hujan'}</strong><span>{currentRain === null ? '—' : `${currentRain.toFixed(1)} mm`}</span></div>
-        <footer>Anggaran model cuaca di lokasi rumah anda</footer>
+        <div className="week-live-value"><strong>{currentAssessment?.headline ?? 'Data tiada'}</strong><span>{currentRainRate === null ? '—' : `${currentProbability === null ? '' : `${Math.round(currentProbability)}% · `}~${currentRainRate.toFixed(1)} mm/j`}</span></div>
+        <footer>{currentAssessment?.gear ?? 'Anggaran model cuaca di lokasi rumah anda'}</footer>
       </article>
-      {showLeave && leave && <Link to="/leave" className={`week-live-card week-leave-card risk-${getRiskLevel(leaveSlot?.riskScore ?? 100, config.rainThreshold)}`}>
-        <header><span className="week-live-icon"><Clock3 /></span><span>Cadangan masa balik</span><i className="risk-pin" /></header>
-        <div className="week-live-value"><strong>{leaveSlot?.isNow ? 'Sekarang' : leave.recommendedTime}</strong><span>{Math.round(leave.probability)}% hujan</span></div>
-        <footer><span>{leave.hasCleanWindow ? 'Masa terawal di bawah had risiko' : 'Pilihan paling rendah risiko dalam tetingkap'}</span><i className="week-live-arrow"><ArrowRight /></i></footer>
+      {showLeave && leave && <Link to="/leave" className={`week-live-card week-leave-card risk-${getRiskLevel(leaveSlot?.riskScore ?? 100, config.rainThreshold, warnings.length > 0)}`}>
+        <header><span className="week-live-icon"><Clock3 /></span><span>{leaveHardStop ? 'Semakan masa balik' : 'Cadangan masa balik'}</span><i className="risk-pin" /></header>
+        <div className="week-live-value"><strong>{leaveSlot?.isNow ? 'Sekarang' : leave.recommendedTime}</strong><span>{Math.round(leave.probability)}% peluang</span></div>
+        <footer><span>{leaveHardStop ? 'Bahaya cuaca mengatasi toleransi—semak sebelum bergerak' : leave.hasCleanWindow ? 'Masa terawal di bawah toleransi hujan' : 'Pilihan paling rendah risiko dalam tetingkap'}</span><i className="week-live-arrow"><ArrowRight /></i></footer>
       </Link>}
     </section>
   </div>;

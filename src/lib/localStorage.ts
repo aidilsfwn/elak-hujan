@@ -1,3 +1,4 @@
+import { normalizeRainThreshold } from '@/constants/thresholds';
 import type { UserConfig } from '@/types/config';
 import { isUserConfig } from '@/lib/configValidation';
 
@@ -9,6 +10,7 @@ export function getConfig(): UserConfig | null {
     const raw = localStorage.getItem(CONFIG_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<UserConfig> & { preferredDays?: unknown };
+    if (typeof parsed.configVersion === 'number' && parsed.configVersion > 4) return null;
     // v1/v2 stored preferred days; their complement becomes unavailable.
     // This preserves the days users selected while adopting hard constraints.
     if (!Array.isArray(parsed.unavailableDays)) {
@@ -18,8 +20,11 @@ export function getConfig(): UserConfig | null {
       parsed.unavailableDays = WEEKDAYS.filter((day) => !preferred.includes(day));
     }
     delete parsed.preferredDays;
-    parsed.configVersion = 3;
-    return isUserConfig(parsed) ? parsed : null;
+    parsed.rainThreshold = normalizeRainThreshold(parsed.rainThreshold);
+    parsed.configVersion = 4;
+    if (!isUserConfig(parsed)) return null;
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(parsed));
+    return parsed;
   } catch {
     return null;
   }

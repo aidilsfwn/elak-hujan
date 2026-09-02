@@ -1,4 +1,4 @@
-import { RAIN_THRESHOLD_MAX, RAIN_THRESHOLD_MIN } from '@/constants/thresholds';
+import { RAIN_TOLERANCE_OPTIONS } from '@/constants/thresholds';
 import { isValidTimeWindow } from '@/lib/rainScoring';
 import type { Location, UserConfig } from '@/types/config';
 
@@ -17,12 +17,12 @@ export function validateConfig(config: Partial<UserConfig>): string[] {
   if (!Number.isInteger(config.officeDaysPerWeek) || config.officeDaysPerWeek! < 1 || config.officeDaysPerWeek! > 5) errors.push('Bilangan hari pejabat mesti antara 1 hingga 5.');
   if (!Array.isArray(config.unavailableDays) || config.unavailableDays.some((day) => !WEEKDAYS.includes(day)) || new Set(config.unavailableDays).size !== config.unavailableDays.length) errors.push('Hari yang tidak tersedia tidak sah.');
   else if (WEEKDAYS.length - config.unavailableDays.length < (config.officeDaysPerWeek ?? 1)) errors.push('Tidak cukup hari tersedia untuk memenuhi bilangan hari pejabat.');
-  if (typeof config.rainThreshold !== 'number' || config.rainThreshold < RAIN_THRESHOLD_MIN || config.rainThreshold > RAIN_THRESHOLD_MAX) errors.push('Had hujan tidak sah.');
+  if (!RAIN_TOLERANCE_OPTIONS.some((option) => option.value === config.rainThreshold)) errors.push('Toleransi hujan tidak sah.');
   return errors;
 }
 
 export function isUserConfig(value: unknown): value is UserConfig {
   if (!value || typeof value !== 'object') return false;
   const config = value as Partial<UserConfig>;
-  return config.onboardingComplete === true && validateConfig(config).length === 0;
+  return config.onboardingComplete === true && config.configVersion === 4 && validateConfig(config).length === 0;
 }

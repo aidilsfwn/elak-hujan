@@ -5,7 +5,7 @@ const config = {
   officeLocation: { name: 'Putrajaya, Malaysia', lat: 2.9264, lon: 101.6964, state: 'W.P. Putrajaya' },
   morningWindow: { start: '08:00', end: '09:00' }, eveningWindow: { start: '17:00', end: '18:00' },
   officeDaysPerWeek: 3, unavailableDays: [], rainThreshold: 40,
-  onboardingComplete: true, configVersion: 3,
+  onboardingComplete: true, configVersion: 4,
 };
 
 function dateRange(): string[] {
@@ -70,9 +70,22 @@ test('leave advisor keeps the current partial hour visible', async ({ page }) =>
   await page.goto('/leave');
 
   await expect(page.getByRole('heading', { name: 'Sekarang ialah pilihan paling rendah risiko.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Hujan belum pasti' })).toBeVisible();
+  await expect(page.getByText('Windbreaker pakai, raincoat letak paling atas.')).toBeVisible();
   const selected = page.locator('.hour-ribbon-values .is-selected');
   await expect(selected.getByText('Kini', { exact: true })).toBeVisible();
   await expect(selected.getByText('60%', { exact: true })).toBeVisible();
+});
+
+test('settings use rain tolerance presets instead of a safety-negotiating slider', async ({ page }) => {
+  await page.addInitScript((stored) => localStorage.setItem('elakhujan_config', JSON.stringify(stored)), { ...config, rainThreshold: 47, configVersion: 3 });
+  await page.goto('/settings');
+
+  await expect(page.getByRole('button', { name: 'Seimbang 40%' })).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('elakhujan_config')!).configVersion)).toBe(4);
+  await page.getByRole('button', { name: 'Tahan hujan 55%' }).click();
+  await page.getByRole('button', { name: 'Simpan perubahan' }).click();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('elakhujan_config')!).rainThreshold)).toBe(55);
 });
 
 test('onboarding requires explicit verified locations', async ({ page }) => {
