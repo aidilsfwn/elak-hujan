@@ -16,7 +16,7 @@ export interface UserConfig {
   morningWindow: TimeWindow;
   eveningWindow: TimeWindow;
   officeDaysPerWeek: number;
-  preferredDays: string[]; // ["monday", "tuesday", ...]
+  unavailableDays: string[]; // ["monday", "tuesday", ...]
   rainThreshold: number;
   onboardingComplete: boolean;
   configVersion: number;

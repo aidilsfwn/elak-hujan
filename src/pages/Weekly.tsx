@@ -33,7 +33,7 @@ function SmallDay({ day, threshold, index }: { day: ScoredDay; threshold: number
   const risk = getRiskLevel(day.combinedScore ?? 100, threshold);
   return <motion.div initial={{ opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * .04 }}>
     <Link to={`/day/${day.dateStr}`} className={`week-mini risk-${risk}`}>
-      <header><span>{day.date.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' })}</span>{day.isRecommended && <em>Disyorkan</em>}</header>
+      <header><span>{day.date.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' })}</span>{(day.isRecommended || day.isUnavailable) && <em>{day.isRecommended ? 'Disyorkan' : 'Tidak tersedia'}</em>}</header>
       <h3>{names[day.dayName]}</h3>
       <div><p><span>Laluan pagi</span><strong>{probability(day.morningScore)}</strong></p><p><span>Laluan petang</span><strong>{probability(day.eveningScore)}</strong></p></div>
       <small className="confidence-note">Keyakinan {day.confidence}</small><i className="risk-pin" />
@@ -68,7 +68,7 @@ export function Weekly() {
   const activeDays = activeWeek?.days ?? [];
   const availableDays = activeDays.filter((day) => day.combinedScore !== null);
   const recommendedDays = availableDays.filter((day) => day.isRecommended).sort((a, b) => a.combinedScore! - b.combinedScore!);
-  const rankedAvailableDays = [...availableDays].sort((a, b) => a.combinedScore! - b.combinedScore!);
+  const rankedAvailableDays = availableDays.filter((day) => !day.isUnavailable).sort((a, b) => a.combinedScore! - b.combinedScore!);
   const lead = recommendedDays[0] ?? rankedAvailableDays[0];
   const completedThisWeek = Object.values(attendance.weeks[currentWeekKey]?.statuses ?? {}).filter((status) => status === 'office').length;
   const following = activeDays.filter((day) => day.dateStr !== lead?.dateStr);
@@ -128,7 +128,7 @@ export function Weekly() {
       {showLeave && leave && <Link to="/leave" className={`week-live-card week-leave-card risk-${getRiskLevel(leaveSlot?.riskScore ?? 100, config.rainThreshold)}`}>
         <header><span className="week-live-icon"><Clock3 /></span><span>Cadangan masa balik</span><i className="risk-pin" /></header>
         <div className="week-live-value"><strong>{leave.recommendedTime}</strong><span>{Math.round(leave.probability)}% hujan</span></div>
-        <footer><span>Pilihan paling selamat di sepanjang laluan</span><i className="week-live-arrow"><ArrowRight /></i></footer>
+        <footer><span>{leave.hasCleanWindow ? 'Masa terawal di bawah had risiko' : 'Pilihan paling rendah risiko dalam tetingkap'}</span><i className="week-live-arrow"><ArrowRight /></i></footer>
       </Link>}
     </section>
   </div>;

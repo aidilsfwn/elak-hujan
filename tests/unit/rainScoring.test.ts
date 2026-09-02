@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { assessRouteWindow, getPlanningWeekdays, getRecommendedDays, getRollingWeekdays, getWeekKey, isValidTimeWindow, type ScoredDay } from '@/lib/rainScoring';
 import { weather } from './weatherFactory';
 
+const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+function scoredDay(dateStr: string, score: number | null): ScoredDay {
+  const date = new Date(`${dateStr}T00:00:00`);
+  return { date, dateStr, dayName: dayNames[date.getDay()], morningScore: score, eveningScore: score, combinedScore: score, expectedRainMm: 0, peakGustKmh: 10, hasThunderstorm: false, confidence: 'tinggi', isUnavailable: false, isRecommended: false };
+}
+
 describe('route rain scoring', () => {
   it('weights minute-level overlap and retains the peak probability', () => {
     const point = weather(['2026-09-01T09:00', '2026-09-01T10:00'], [20, 80]);
@@ -40,40 +46,44 @@ describe('route rain scoring', () => {
     expect(new Set(result.map(getWeekKey)).size).toBe(2);
   });
 
-  it('does not recommend days whose data is unavailable', () => {
-    const base = (dateStr: string, score: number | null, preferred = true): ScoredDay => ({ date: new Date(`${dateStr}T00:00:00`), dateStr, dayName: 'monday', morningScore: score, eveningScore: score, combinedScore: score, expectedRainMm: 0, peakGustKmh: 10, hasThunderstorm: false, confidence: 'tinggi', isPreferred: preferred, isRecommended: false });
-    const result = getRecommendedDays([base('2026-09-01', null), base('2026-09-02', 30)], 1, ['monday']);
+  it('does not recommend days whose weather data is unavailable', () => {
+    const result = getRecommendedDays([scoredDay('2026-09-01', null), scoredDay('2026-09-02', 30)], 1, []);
     expect(result[0].isRecommended).toBe(false);
     expect(result[1].isRecommended).toBe(true);
   });
 
-  it('selects the configured number of recommended days independently per week', () => {
-    const base = (dateStr: string, score: number): ScoredDay => ({ date: new Date(`${dateStr}T00:00:00`), dateStr, dayName: 'monday', morningScore: score, eveningScore: score, combinedScore: score, expectedRainMm: 0, peakGustKmh: 10, hasThunderstorm: false, confidence: 'tinggi', isPreferred: true, isRecommended: false });
+  it('excludes unavailable weekdays even when they have the lowest weather risk', () => {
     const result = getRecommendedDays([
-      base('2026-09-02', 30), base('2026-09-03', 20), base('2026-09-04', 10),
-      base('2026-09-07', 50), base('2026-09-08', 40), base('2026-09-09', 30), base('2026-09-10', 20), base('2026-09-11', 10),
-    ], 3, ['monday']);
+      scoredDay('2026-09-07', 50), scoredDay('2026-09-08', 10), scoredDay('2026-09-09', 20), scoredDay('2026-09-10', 5), scoredDay('2026-09-11', 30),
+    ], 3, ['thursday']);
+    expect(result.filter((day) => day.isRecommended).map((day) => day.dayName)).toEqual(['tuesday', 'wednesday', 'friday']);
+    expect(result.find((day) => day.dayName === 'thursday')).toMatchObject({ isUnavailable: true, isRecommended: false });
+  });
+
+  it('selects the configured number of lowest-risk eligible days independently per week', () => {
+    const result = getRecommendedDays([
+      scoredDay('2026-09-02', 30), scoredDay('2026-09-03', 20), scoredDay('2026-09-04', 10),
+      scoredDay('2026-09-07', 50), scoredDay('2026-09-08', 40), scoredDay('2026-09-09', 30), scoredDay('2026-09-10', 20), scoredDay('2026-09-11', 10),
+    ], 3, []);
     const counts = new Map<string, number>();
     result.filter((day) => day.isRecommended).forEach((day) => counts.set(getWeekKey(day.date), (counts.get(getWeekKey(day.date)) ?? 0) + 1));
     expect([...counts.values()]).toEqual([3, 3]);
   });
 
   it('reduces only the current week recommendation count for completed office days', () => {
-    const base = (dateStr: string, score: number): ScoredDay => ({ date: new Date(`${dateStr}T00:00:00`), dateStr, dayName: 'monday', morningScore: score, eveningScore: score, combinedScore: score, expectedRainMm: 0, peakGustKmh: 10, hasThunderstorm: false, confidence: 'tinggi', isPreferred: true, isRecommended: false });
     const result = getRecommendedDays([
-      base('2026-09-02', 10), base('2026-09-03', 20), base('2026-09-04', 30),
-      base('2026-09-07', 10), base('2026-09-08', 20), base('2026-09-09', 30), base('2026-09-10', 40), base('2026-09-11', 50),
-    ], 3, ['monday'], ['2026-08-31', '2026-09-01']);
+      scoredDay('2026-09-02', 10), scoredDay('2026-09-03', 20), scoredDay('2026-09-04', 30),
+      scoredDay('2026-09-07', 10), scoredDay('2026-09-08', 20), scoredDay('2026-09-09', 30), scoredDay('2026-09-10', 40), scoredDay('2026-09-11', 50),
+    ], 3, [], ['2026-08-31', '2026-09-01']);
     const counts = new Map<string, number>();
     result.filter((day) => day.isRecommended).forEach((day) => counts.set(getWeekKey(day.date), (counts.get(getWeekKey(day.date)) ?? 0) + 1));
     expect([...counts.values()]).toEqual([1, 3]);
   });
 
   it('never recommends a completed day that is still in the actionable forecast', () => {
-    const base = (dateStr: string, score: number): ScoredDay => ({ date: new Date(`${dateStr}T00:00:00`), dateStr, dayName: 'monday', morningScore: score, eveningScore: score, combinedScore: score, expectedRainMm: 0, peakGustKmh: 10, hasThunderstorm: false, confidence: 'tinggi', isPreferred: true, isRecommended: false });
     const result = getRecommendedDays([
-      base('2026-09-01', 5), base('2026-09-02', 20), base('2026-09-03', 30), base('2026-09-04', 40),
-    ], 3, ['monday'], ['2026-08-31', '2026-09-01']);
+      scoredDay('2026-09-01', 5), scoredDay('2026-09-02', 20), scoredDay('2026-09-03', 30), scoredDay('2026-09-04', 40),
+    ], 3, [], ['2026-08-31', '2026-09-01']);
     expect(result.find((day) => day.dateStr === '2026-09-01')?.isRecommended).toBe(false);
     expect(result.filter((day) => day.isRecommended)).toHaveLength(1);
   });

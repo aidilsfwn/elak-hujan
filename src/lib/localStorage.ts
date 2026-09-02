@@ -8,18 +8,17 @@ export function getConfig(): UserConfig | null {
   try {
     const raw = localStorage.getItem(CONFIG_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<UserConfig>;
-    // v1 allowed fewer preferred days than the requested office-day count.
-    // Preserve existing settings and fill that gap instead of resetting users.
-    if (Array.isArray(parsed.preferredDays) && typeof parsed.officeDaysPerWeek === 'number') {
-      const preferred = parsed.preferredDays.filter((day): day is string => typeof day === 'string');
-      for (const day of WEEKDAYS) {
-        if (preferred.length >= parsed.officeDaysPerWeek) break;
-        if (!preferred.includes(day)) preferred.push(day);
-      }
-      parsed.preferredDays = preferred;
+    const parsed = JSON.parse(raw) as Partial<UserConfig> & { preferredDays?: unknown };
+    // v1/v2 stored preferred days; their complement becomes unavailable.
+    // This preserves the days users selected while adopting hard constraints.
+    if (!Array.isArray(parsed.unavailableDays)) {
+      const preferred = Array.isArray(parsed.preferredDays)
+        ? parsed.preferredDays.filter((day): day is string => typeof day === 'string')
+        : WEEKDAYS;
+      parsed.unavailableDays = WEEKDAYS.filter((day) => !preferred.includes(day));
     }
-    parsed.configVersion = 2;
+    delete parsed.preferredDays;
+    parsed.configVersion = 3;
     return isUserConfig(parsed) ? parsed : null;
   } catch {
     return null;

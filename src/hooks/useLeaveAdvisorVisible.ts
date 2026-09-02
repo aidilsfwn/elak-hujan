@@ -5,7 +5,7 @@ import { malaysiaNow } from '@/lib/rainScoring';
 
 /**
  * Returns true when the current time is within LEAVE_ADVISOR_LEAD_HOURS before
- * the evening commute window start, through 1 hour after the window ends.
+ * the evening commute window start through the configured window end.
  * Rechecked every minute.
  */
 export function useLeaveAdvisorVisible(): boolean {
@@ -23,7 +23,7 @@ export function useLeaveAdvisorVisible(): boolean {
       const windowStartMins = startH * 60 + startM;
       const windowEndMins = endH * 60 + endM;
       const leadMins = LEAVE_ADVISOR_LEAD_HOURS * 60;
-      setIsVisible(nowMins >= windowStartMins - leadMins && nowMins <= windowEndMins + 60);
+      setIsVisible(nowMins >= windowStartMins - leadMins && nowMins <= windowEndMins);
     }
 
     check();

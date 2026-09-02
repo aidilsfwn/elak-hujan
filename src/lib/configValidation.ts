@@ -2,6 +2,8 @@ import { RAIN_THRESHOLD_MAX, RAIN_THRESHOLD_MIN } from '@/constants/thresholds';
 import { isValidTimeWindow } from '@/lib/rainScoring';
 import type { Location, UserConfig } from '@/types/config';
 
+const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+
 export function isValidLocation(location: Location | undefined): boolean {
   return Boolean(location?.name && location.state && Number.isFinite(location.lat) && Number.isFinite(location.lon) && location.lat >= -90 && location.lat <= 90 && location.lon >= -180 && location.lon <= 180 && !(location.lat === 0 && location.lon === 0));
 }
@@ -13,7 +15,8 @@ export function validateConfig(config: Partial<UserConfig>): string[] {
   if (!config.morningWindow || !isValidTimeWindow(config.morningWindow.start, config.morningWindow.end)) errors.push('Waktu pagi mesti tamat selepas waktu mula.');
   if (!config.eveningWindow || !isValidTimeWindow(config.eveningWindow.start, config.eveningWindow.end)) errors.push('Waktu petang mesti tamat selepas waktu mula.');
   if (!Number.isInteger(config.officeDaysPerWeek) || config.officeDaysPerWeek! < 1 || config.officeDaysPerWeek! > 5) errors.push('Bilangan hari pejabat mesti antara 1 hingga 5.');
-  if (!Array.isArray(config.preferredDays) || config.preferredDays.some((day) => typeof day !== 'string') || config.preferredDays.length < (config.officeDaysPerWeek ?? 1)) errors.push('Pilih sekurang-kurangnya sebanyak bilangan hari pejabat.');
+  if (!Array.isArray(config.unavailableDays) || config.unavailableDays.some((day) => !WEEKDAYS.includes(day)) || new Set(config.unavailableDays).size !== config.unavailableDays.length) errors.push('Hari yang tidak tersedia tidak sah.');
+  else if (WEEKDAYS.length - config.unavailableDays.length < (config.officeDaysPerWeek ?? 1)) errors.push('Tidak cukup hari tersedia untuk memenuhi bilangan hari pejabat.');
   if (typeof config.rainThreshold !== 'number' || config.rainThreshold < RAIN_THRESHOLD_MIN || config.rainThreshold > RAIN_THRESHOLD_MAX) errors.push('Had hujan tidak sah.');
   return errors;
 }
