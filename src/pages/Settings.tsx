@@ -3,7 +3,7 @@ import { Check, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { LocationField } from '@/components/LocationField';
 import { copy } from '@/constants/copy';
-import { RAIN_THRESHOLD_MAX, RAIN_THRESHOLD_MIN } from '@/constants/thresholds';
+import { RAIN_TOLERANCE_OPTIONS } from '@/constants/thresholds';
 import { useConfig } from '@/hooks/useConfig';
 import { validateConfig } from '@/lib/configValidation';
 import { clearConfig } from '@/lib/localStorage';
@@ -25,8 +25,9 @@ export function Settings() {
   }, [dirty]);
   if (!config) return null;
   const update = (value: Partial<UserConfig>) => setDraft((current) => ({ ...current, ...value }));
-  const save = () => { if (errors.length) return; setConfig({ ...draft, configVersion: 3 }); setSaved(true); window.setTimeout(() => setSaved(false), 2000); };
+  const save = () => { if (errors.length) return; setConfig({ ...draft, configVersion: 4 }); setSaved(true); window.setTimeout(() => setSaved(false), 2000); };
   const reset = () => { if (window.confirm(copy.settings.resetConfirm)) { clearConfig(); navigate('/onboarding', { replace: true }); window.location.reload(); } };
+  const tolerance = RAIN_TOLERANCE_OPTIONS.find((option) => option.value === draft.rainThreshold) ?? RAIN_TOLERANCE_OPTIONS[1];
 
   return <div className="settings-page">
     <header className="settings-heading"><span>Tetapan peribadi</span><h1>Bina rutin yang sesuai.</h1><p>Lokasi, masa dan toleransi risiko anda menentukan setiap cadangan.</p></header>
@@ -43,7 +44,7 @@ export function Settings() {
       </div>
 
       <aside className="settings-aside">
-        <section className="threshold-panel"><span>Had risiko hujan</span><strong>{draft.rainThreshold}%</strong><input aria-label="Had risiko hujan" type="range" min={RAIN_THRESHOLD_MIN} max={RAIN_THRESHOLD_MAX} step="5" value={draft.rainThreshold} onChange={(event) => update({ rainThreshold: Number(event.target.value) })} /><p>Perjalanan ditanda berisiko apabila skor sama atau melebihi nilai ini. Skor turut mengambil kira hujan lebat, ribut petir dan angin.</p></section>
+        <section className="threshold-panel"><span>Toleransi hujan</span><strong>{tolerance.label}</strong><em>{tolerance.value}% peluang hujan</em><div className="tolerance-options" role="group" aria-label="Pilih tahap toleransi hujan">{RAIN_TOLERANCE_OPTIONS.map((option) => <button type="button" key={option.value} aria-pressed={draft.rainThreshold === option.value} className={draft.rainThreshold === option.value ? 'is-selected' : ''} onClick={() => update({ rainThreshold: option.value })}><b>{option.label}</b><small>{option.value}%</small></button>)}</div><p>{tolerance.description} Hujan lebat, ribut petir, angin kencang dan amaran rasmi tetap memotong barisan—toleransi bukan lesen jadi hero.</p></section>
         <details className="about-panel"><summary>Tentang ramalan</summary><div><h3>Sumber data</h3>{copy.about.sources.map((source) => <p key={source.name}><strong>{source.name}</strong><br />{source.desc}</p>)}<h3>Ketepatan dan had</h3>{copy.about.accuracyNotes.map((note) => <p key={note}>{note}</p>)}<p>{copy.about.disclaimer}</p><footer><a href={copy.about.github} target="_blank" rel="noreferrer">GitHub<ExternalLink /></a><a href={copy.about.linkedin} target="_blank" rel="noreferrer">LinkedIn<ExternalLink /></a></footer></div></details>
         <section className="reset-panel"><span>Mulakan semula</span><p>Padam lokasi dan rutin daripada peranti ini.</p><button onClick={reset}>Padam semua data</button></section>
       </aside>

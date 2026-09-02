@@ -7,6 +7,7 @@ import { useWeather } from '@/hooks/useWeather';
 import { getRecommendedLeaveTime } from '@/lib/leaveAdvisor';
 import { assessRouteWindow, getRouteHourly, malaysiaNow, timeToMinutes, toLocalDateStr } from '@/lib/rainScoring';
 import { getRiskLevel, getVerdict, riskLabel } from '@/lib/risk';
+import { assessWeather } from '@/lib/weatherAssessment';
 
 const names = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
 function parseDate(value: string) { const [year, month, day] = value.split('-').map(Number); return new Date(year, month - 1, day); }
@@ -25,9 +26,13 @@ export function DayDetail() {
   const morningRisk = morning?.riskScore;
   const eveningRisk = evening?.riskScore;
   const complete = typeof morningRisk === 'number' && typeof eveningRisk === 'number';
-  const combined = complete ? Math.max(morningRisk, eveningRisk) * .75 + Math.min(morningRisk, eveningRisk) * .25 : null;
+  const hasHardHazard = Boolean(morning?.hasHardHazard || evening?.hasHardHazard);
+  const baseScore = complete ? Math.max(morningRisk, eveningRisk) * .75 + Math.min(morningRisk, eveningRisk) * .25 : null;
+  const combined = baseScore === null ? null : hasHardHazard ? Math.max(90, baseScore) : baseScore;
   const risk = getRiskLevel(combined ?? 100, config?.rainThreshold ?? 40);
   const leave = config && validDate && weather.routeWeather.length ? getRecommendedLeaveTime(weather.routeWeather, date, config.eveningWindow, config.rainThreshold) : null;
+  const leaveSlot = leave?.slots.find((slot) => slot.time === leave.recommendedTime);
+  const leaveHardStop = leaveSlot?.assessment.hardStop ?? false;
   const hours = validDate && dateString ? getRouteHourly(weather.routeWeather, dateString) : [];
   const selectedHour = leave ? Number(leave.recommendedTime.slice(0, 2)) : config ? timeToMinutes(config.morningWindow.start) / 60 : 8;
 
@@ -49,9 +54,9 @@ export function DayDetail() {
           <h1>{names[date.getDay()]}</h1><p>{getVerdict(combined!, config.rainThreshold)}.</p><em>{riskLabel[risk]}</em>
           <small className="day-method">Skor menekankan perjalanan yang paling berisiko, hujan lebat, ribut petir dan angin di lima titik laluan.</small>
         </motion.section>
-        <section className="day-commutes"><div><span>Laluan · pagi</span><strong>{formatProbability(morning!.peakProbability)}</strong><small>Peluang tertinggi · {config.morningWindow.start}–{config.morningWindow.end}</small></div><div><span>Laluan · petang</span><strong>{formatProbability(evening!.peakProbability)}</strong><small>Peluang tertinggi · {config.eveningWindow.start}–{config.eveningWindow.end}</small></div>{leave && <footer><span>Masa balik disyorkan</span><strong>{leave.recommendedTime}</strong></footer>}</section>
+        <section className="day-commutes"><div><span>Laluan · pagi</span><strong>{formatProbability(morning!.peakProbability)}</strong><small>Peluang tertinggi · {config.morningWindow.start}–{config.morningWindow.end}</small></div><div><span>Laluan · petang</span><strong>{formatProbability(evening!.peakProbability)}</strong><small>Peluang tertinggi · {config.eveningWindow.start}–{config.eveningWindow.end}</small></div>{leave && <footer><span>{leaveHardStop ? 'Masa untuk rujukan sahaja' : 'Masa balik disyorkan'}</span><strong>{leave.recommendedTime}</strong></footer>}</section>
       </div>
-      <section className="day-hours"><header><div><span>Sejam demi sejam</span><h2>Risiko tertinggi di sepanjang laluan</h2></div><small>Seret untuk melihat · label ialah masa bertolak</small></header><div className="day-hour-scroll" ref={scrollRef}><div className="day-hour-plot">{hours.filter(({ hour }) => hour > 0).map(({ hour, probability }) => { const departureHour = hour - 1; const value = probability ?? 100; const hourRisk = getRiskLevel(value, config.rainThreshold); const selected = leave ? Number(leave.recommendedTime.slice(0, 2)) === departureHour : false; const departureMinutes = departureHour * 60; const morningBand = departureMinutes >= timeToMinutes(config.morningWindow.start) && departureMinutes < timeToMinutes(config.morningWindow.end); const eveningBand = departureMinutes >= timeToMinutes(config.eveningWindow.start) && departureMinutes < timeToMinutes(config.eveningWindow.end); return <div data-hour={departureHour} key={hour} className={`risk-${hourRisk} ${selected ? 'is-selected' : ''} ${morningBand ? 'is-morning' : ''} ${eveningBand ? 'is-evening' : ''}`}><span>{String(departureHour).padStart(2, '0')}</span><i style={{ height: `${Math.max(5, value)}px` }} /><strong>{probability === null ? '—' : `${Math.round(probability)}%`}</strong></div>; })}</div></div><div className="day-chart-legend"><span className="is-morning">Pagi</span><span className="is-evening">Petang</span><span>Peratus = peluang tertinggi antara lima titik laluan</span></div></section>
+      <section className="day-hours"><header><div><span>Sejam demi sejam</span><h2>Risiko tertinggi di sepanjang laluan</h2></div><small>Seret untuk melihat · label ialah masa bertolak</small></header><div className="day-hour-scroll" ref={scrollRef}><div className="day-hour-plot">{hours.filter(({ hour }) => hour > 0).map(({ hour, probability, precipitationMm, showersMm, gustKmh, weatherCode }) => { const departureHour = hour - 1; const assessment = assessWeather({ probability, precipitationMm, showersMm, gustKmh, weatherCode, threshold: config.rainThreshold }); const value = probability === null ? 100 : assessment.riskScore; const hourRisk = getRiskLevel(value, config.rainThreshold); const selected = leave && !leaveHardStop ? Number(leave.recommendedTime.slice(0, 2)) === departureHour : false; const departureMinutes = departureHour * 60; const morningBand = departureMinutes >= timeToMinutes(config.morningWindow.start) && departureMinutes < timeToMinutes(config.morningWindow.end); const eveningBand = departureMinutes >= timeToMinutes(config.eveningWindow.start) && departureMinutes < timeToMinutes(config.eveningWindow.end); return <div data-hour={departureHour} key={hour} className={`risk-${hourRisk} ${selected ? 'is-selected' : ''} ${morningBand ? 'is-morning' : ''} ${eveningBand ? 'is-evening' : ''}`}><span>{String(departureHour).padStart(2, '0')}</span><i style={{ height: `${Math.max(5, value)}px` }} /><strong>{probability === null ? '—' : `${Math.round(probability)}%`}</strong></div>; })}</div></div><div className="day-chart-legend"><span className="is-morning">Pagi</span><span className="is-evening">Petang</span><span>Peratus = peluang tertinggi antara lima titik laluan</span></div></section>
     </>}
   </div>;
 }

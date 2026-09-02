@@ -9,7 +9,7 @@ const config: UserConfig = {
   homeLocation: { name: 'Kuala Lumpur, Malaysia', lat: 3.14, lon: 101.69, state: 'W.P. Kuala Lumpur' },
   officeLocation: { name: 'Putrajaya, Malaysia', lat: 2.93, lon: 101.69, state: 'W.P. Putrajaya' },
   morningWindow: { start: '08:00', end: '09:00' }, eveningWindow: { start: '17:00', end: '18:00' },
-  officeDaysPerWeek: 3, unavailableDays: ['thursday'], rainThreshold: 40, onboardingComplete: true, configVersion: 3,
+  officeDaysPerWeek: 3, unavailableDays: ['thursday'], rainThreshold: 40, onboardingComplete: true, configVersion: 4,
 };
 
 describe('official data handling', () => {
@@ -36,5 +36,10 @@ describe('official data handling', () => {
 
   it('requires enough eligible weekdays to meet the office-day target', () => {
     expect(validateConfig({ ...config, unavailableDays: ['monday', 'tuesday', 'wednesday'] })).toContain('Tidak cukup hari tersedia untuk memenuhi bilangan hari pejabat.');
+  });
+
+  it('accepts only canonical rain tolerance presets', () => {
+    expect(validateConfig({ ...config, rainThreshold: 55 })).not.toContain('Toleransi hujan tidak sah.');
+    expect(validateConfig({ ...config, rainThreshold: 47 })).toContain('Toleransi hujan tidak sah.');
   });
 });

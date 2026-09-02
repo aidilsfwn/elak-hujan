@@ -1,6 +1,19 @@
 export const RAIN_THRESHOLD_DEFAULT = 40;
-export const RAIN_THRESHOLD_MIN = 10;
-export const RAIN_THRESHOLD_MAX = 80;
+export const RAIN_THRESHOLD_MIN = 30;
+export const RAIN_THRESHOLD_MAX = 55;
+
+export const RAIN_TOLERANCE_OPTIONS = [
+  { value: 30, label: 'Berhati-hati', description: 'Renyai pun saya sanggup tunggu.' },
+  { value: 40, label: 'Seimbang', description: 'Renyai boleh, hujan betul kita bincang.' },
+  { value: 55, label: 'Tahan hujan', description: 'Raincoat memang penghuni tetap motor.' },
+] as const;
+
+export function normalizeRainThreshold(value: unknown): number {
+  const numeric = typeof value === 'number' && Number.isFinite(value) ? value : RAIN_THRESHOLD_DEFAULT;
+  return RAIN_TOLERANCE_OPTIONS.reduce((closest, option) =>
+    Math.abs(option.value - numeric) < Math.abs(closest.value - numeric) ? option : closest
+  ).value;
+}
 
 export const RISK_LEVELS = {
   LOW:    { max: 40,  label: 'Rendah',    color: 'text-emerald-700 bg-emerald-100 border-emerald-300' },

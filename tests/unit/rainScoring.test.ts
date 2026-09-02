@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { assessRouteWindow, getPlanningWeekdays, getRecommendedDays, getRollingWeekdays, getWeekKey, isValidTimeWindow, type ScoredDay } from '@/lib/rainScoring';
+import { assessRouteWindow, getPlanningWeekdays, getRecommendedDays, getRollingWeekdays, getRouteHourly, getWeekKey, isValidTimeWindow, type ScoredDay } from '@/lib/rainScoring';
 import { weather } from './weatherFactory';
 
 const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 function scoredDay(dateStr: string, score: number | null): ScoredDay {
   const date = new Date(`${dateStr}T00:00:00`);
-  return { date, dateStr, dayName: dayNames[date.getDay()], morningScore: score, eveningScore: score, combinedScore: score, expectedRainMm: 0, peakGustKmh: 10, hasThunderstorm: false, confidence: 'tinggi', isUnavailable: false, isRecommended: false };
+  return { date, dateStr, dayName: dayNames[date.getDay()], morningScore: score, eveningScore: score, combinedScore: score, expectedRainMm: 0, peakGustKmh: 10, hasThunderstorm: false, hasHardHazard: false, confidence: 'tinggi', isUnavailable: false, isRecommended: false };
 }
 
 describe('route rain scoring', () => {
@@ -26,6 +26,19 @@ describe('route rain scoring', () => {
   it('adds conservative floors for thunderstorms, heavy rain, and gusts', () => {
     const point = weather(['2026-09-01T09:00'], [20], { precipitation: [3], weather_code: [95], wind_gusts_10m: [45] });
     expect(assessRouteWindow([point], new Date(2026, 8, 1), '08:00', '09:00').riskScore).toBe(90);
+  });
+
+  it('uses peak hourly intensity and heavy WMO codes for hard hazards', () => {
+    const accumulated = weather(['2026-09-01T09:00', '2026-09-01T10:00'], [20, 20], { precipitation: [1.1, 1.1] });
+    const codedHeavy = weather(['2026-09-01T09:00'], [20], { precipitation: [0.1], weather_code: [65] });
+    expect(assessRouteWindow([accumulated], new Date(2026, 8, 1), '08:00', '10:00')).toMatchObject({ precipitationMm: 2.2, peakPrecipitationMm: 1.1, hasHardHazard: false });
+    expect(assessRouteWindow([codedHeavy], new Date(2026, 8, 1), '08:30', '09:00').hasHardHazard).toBe(true);
+  });
+
+  it('preserves categorical heavy-rain hazards across route points', () => {
+    const heavy = weather(['2026-09-01T09:00'], [20], { precipitation: [0.1], weather_code: [65] });
+    const shower = weather(['2026-09-01T09:00'], [20], { precipitation: [0.1], weather_code: [81] });
+    expect(getRouteHourly([heavy, shower], '2026-09-01')[0].weatherCode).toBe(65);
   });
 
   it('rejects reversed or empty windows', () => {
@@ -50,6 +63,14 @@ describe('route rain scoring', () => {
     const result = getRecommendedDays([scoredDay('2026-09-01', null), scoredDay('2026-09-02', 30)], 1, []);
     expect(result[0].isRecommended).toBe(false);
     expect(result[1].isRecommended).toBe(true);
+  });
+
+  it('never recommends a day with a hard weather hazard', () => {
+    const hazardous = { ...scoredDay('2026-09-07', 5), hasHardHazard: true };
+    const safe = scoredDay('2026-09-08', 30);
+    const result = getRecommendedDays([hazardous, safe], 1, []);
+    expect(result.find((day) => day.dateStr === '2026-09-07')?.isRecommended).toBe(false);
+    expect(result.find((day) => day.dateStr === '2026-09-08')?.isRecommended).toBe(true);
   });
 
   it('excludes unavailable weekdays even when they have the lowest weather risk', () => {

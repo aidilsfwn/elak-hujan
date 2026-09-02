@@ -2,9 +2,9 @@ export type RiskLevel = 'low' | 'moderate' | 'high' | 'severe';
 
 export function getRiskLevel(probability: number, threshold = 40, severe = false): RiskLevel {
   if (severe) return 'severe';
-  if (probability < threshold) return 'low';
-  if (probability < 70) return 'moderate';
-  return 'high';
+  if (probability >= 70) return 'high';
+  if (probability >= threshold) return 'moderate';
+  return 'low';
 }
 
 export function getVerdict(probability: number, threshold = 40): string {

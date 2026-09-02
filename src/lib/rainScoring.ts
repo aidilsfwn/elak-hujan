@@ -6,8 +6,10 @@ export interface WindowAssessment {
   averageProbability: number | null;
   peakProbability: number | null;
   precipitationMm: number | null;
+  peakPrecipitationMm: number | null;
   peakGustKmh: number | null;
   hasThunderstorm: boolean;
+  hasHardHazard: boolean;
   riskScore: number | null;
 }
 
@@ -16,6 +18,7 @@ export interface RouteHour {
   hour: number;
   probability: number | null;
   precipitationMm: number;
+  showersMm: number;
   gustKmh: number | null;
   weatherCode: number | null;
 }
@@ -30,6 +33,7 @@ export interface ScoredDay {
   expectedRainMm: number | null;
   peakGustKmh: number | null;
   hasThunderstorm: boolean;
+  hasHardHazard: boolean;
   confidence: 'tinggi' | 'sederhana' | 'rendah';
   isUnavailable: boolean;
   isRecommended: boolean;
@@ -112,7 +116,7 @@ export function getWeekKey(date: Date): string {
 }
 
 function emptyAssessment(): WindowAssessment {
-  return { available: false, averageProbability: null, peakProbability: null, precipitationMm: null, peakGustKmh: null, hasThunderstorm: false, riskScore: null };
+  return { available: false, averageProbability: null, peakProbability: null, precipitationMm: null, peakPrecipitationMm: null, peakGustKmh: null, hasThunderstorm: false, hasHardHazard: false, riskScore: null };
 }
 
 /** Weight preceding-hour forecast buckets by their exact overlap with the configured window. */
@@ -128,8 +132,10 @@ export function assessRouteWindow(routeWeather: WeatherData[], date: Date, start
     let weightedProbability = 0;
     let peakProbability = -1;
     let precipitationMm = 0;
+    let peakPrecipitationMm = -1;
     let peakGustKmh = -1;
     let hasThunderstorm = false;
+    let hasHeavyRainCode = false;
 
     weather.hourly.time.forEach((time, index) => {
       if (time.slice(0, 10) !== dateStr) return;
@@ -141,13 +147,17 @@ export function assessRouteWindow(routeWeather: WeatherData[], date: Date, start
       probabilityWeight += overlap;
       weightedProbability += probability * overlap;
       peakProbability = Math.max(peakProbability, probability);
-      precipitationMm += (weather.hourly.precipitation?.[index] ?? 0) * (overlap / 60);
+      const precipitation = weather.hourly.precipitation?.[index] ?? 0;
+      const weatherCode = weather.hourly.weather_code?.[index] ?? 0;
+      precipitationMm += precipitation * (overlap / 60);
+      peakPrecipitationMm = Math.max(peakPrecipitationMm, precipitation);
       peakGustKmh = Math.max(peakGustKmh, weather.hourly.wind_gusts_10m?.[index] ?? -1);
-      hasThunderstorm ||= (weather.hourly.weather_code?.[index] ?? 0) >= 95;
+      hasThunderstorm ||= weatherCode >= 95;
+      hasHeavyRainCode ||= [65, 67, 82].includes(weatherCode);
     });
 
     if (probabilityWeight < windowDuration * 0.75 || peakProbability < 0) return null;
-    return { averageProbability: weightedProbability / probabilityWeight, peakProbability, precipitationMm, peakGustKmh: peakGustKmh >= 0 ? peakGustKmh : null, hasThunderstorm };
+    return { averageProbability: weightedProbability / probabilityWeight, peakProbability, precipitationMm, peakPrecipitationMm: peakPrecipitationMm >= 0 ? peakPrecipitationMm : null, peakGustKmh: peakGustKmh >= 0 ? peakGustKmh : null, hasThunderstorm, hasHeavyRainCode };
   });
 
   if (pointAssessments.some((assessment) => assessment === null)) return emptyAssessment();
@@ -155,17 +165,21 @@ export function assessRouteWindow(routeWeather: WeatherData[], date: Date, start
   const averageProbability = Math.max(...valid.map((assessment) => assessment.averageProbability));
   const peakProbability = Math.max(...valid.map((assessment) => assessment.peakProbability));
   const precipitationMm = Math.max(...valid.map((assessment) => assessment.precipitationMm));
+  const peakAmounts = valid.map((assessment) => assessment.peakPrecipitationMm).filter((amount): amount is number => amount !== null);
+  const peakPrecipitationMm = peakAmounts.length > 0 ? Math.max(...peakAmounts) : null;
   const gusts = valid.map((assessment) => assessment.peakGustKmh).filter((gust): gust is number => gust !== null);
   const peakGustKmh = gusts.length > 0 ? Math.max(...gusts) : null;
   const hasThunderstorm = valid.some((assessment) => assessment.hasThunderstorm);
+  const hasHeavyRain = valid.some((assessment) => assessment.hasHeavyRainCode) || (peakPrecipitationMm ?? 0) >= 2;
 
   let riskScore = peakProbability * 0.65 + averageProbability * 0.35;
-  if (precipitationMm >= 2) riskScore = Math.max(riskScore, 80);
+  if (hasHeavyRain) riskScore = Math.max(riskScore, 80);
   else if (precipitationMm >= 0.5) riskScore = Math.max(riskScore, 60);
   if (peakGustKmh !== null && peakGustKmh >= 40) riskScore = Math.max(riskScore, 70);
   if (hasThunderstorm) riskScore = Math.max(riskScore, 90);
+  const hasHardHazard = hasHeavyRain || (peakGustKmh ?? 0) >= 40 || hasThunderstorm;
 
-  return { available: true, averageProbability, peakProbability, precipitationMm, peakGustKmh, hasThunderstorm, riskScore: Math.min(100, riskScore) };
+  return { available: true, averageProbability, peakProbability, precipitationMm, peakPrecipitationMm, peakGustKmh, hasThunderstorm, hasHardHazard, riskScore: Math.min(100, riskScore) };
 }
 
 export function extractWindowAverage(hourlyData: WeatherData, date: Date, startTime: string, endTime: string): number | null {
@@ -183,9 +197,11 @@ export function scoreDays(routeWeather: WeatherData[], config: UserConfig, now =
     const morning = assessRouteWindow(routeWeather, date, config.morningWindow.start, config.morningWindow.end);
     const evening = assessRouteWindow(routeWeather, date, config.eveningWindow.start, config.eveningWindow.end);
     const available = morning.riskScore !== null && evening.riskScore !== null;
-    const combinedScore = available
+    const hasHardHazard = morning.hasHardHazard || evening.hasHardHazard;
+    const baseScore = available
       ? Math.max(morning.riskScore!, evening.riskScore!) * 0.75 + Math.min(morning.riskScore!, evening.riskScore!) * 0.25
       : null;
+    const combinedScore = baseScore === null ? null : hasHardHazard ? Math.max(90, baseScore) : baseScore;
     const daysAway = Math.round((date.getTime() - todayMidnight) / 86_400_000);
     const confidence = daysAway <= 1 ? 'tinggi' : daysAway <= 3 ? 'sederhana' : 'rendah';
     const dayName = DAY_NAMES[date.getDay()];
@@ -200,6 +216,7 @@ export function scoreDays(routeWeather: WeatherData[], config: UserConfig, now =
       expectedRainMm: morning.precipitationMm === null || evening.precipitationMm === null ? null : Math.max(morning.precipitationMm, evening.precipitationMm),
       peakGustKmh: morning.peakGustKmh === null && evening.peakGustKmh === null ? null : Math.max(morning.peakGustKmh ?? 0, evening.peakGustKmh ?? 0),
       hasThunderstorm: morning.hasThunderstorm || evening.hasThunderstorm,
+      hasHardHazard,
       confidence,
       isUnavailable: config.unavailableDays.includes(dayName),
       isRecommended: false,
@@ -211,7 +228,7 @@ export function getRecommendedDays(scoredDays: ScoredDay[], count: number, unava
   const byScore = (a: ScoredDay, b: ScoredDay) => a.combinedScore! - b.combinedScore!;
   const completed = new Set(completedDates);
   const weeks = new Map<string, ScoredDay[]>();
-  scoredDays.filter((day) => day.combinedScore !== null && !unavailableDays.includes(day.dayName) && !completed.has(day.dateStr)).forEach((day) => {
+  scoredDays.filter((day) => day.combinedScore !== null && !day.hasHardHazard && !unavailableDays.includes(day.dayName) && !completed.has(day.dateStr)).forEach((day) => {
     const key = getWeekKey(day.date);
     weeks.set(key, [...(weeks.get(key) ?? []), day]);
   });
@@ -228,12 +245,22 @@ export function getRecommendedDays(scoredDays: ScoredDay[], count: number, unava
   return scoredDays.map((day) => ({ ...day, isUnavailable: unavailableDays.includes(day.dayName), isRecommended: recommended.has(day.dateStr) }));
 }
 
+function routeWeatherCode(codes: number[]): number | null {
+  return codes.find((code) => code >= 95)
+    ?? codes.find((code) => [65, 67, 82].includes(code))
+    ?? codes.find((code) => [63, 81].includes(code))
+    ?? codes.find((code) => [61, 66, 80].includes(code))
+    ?? codes.find((code) => code >= 51 && code <= 57)
+    ?? (codes.length > 0 ? Math.max(...codes) : null);
+}
+
 export function getRouteHourly(routeWeather: WeatherData[], dateStr: string): RouteHour[] {
   const times = routeWeather[0]?.hourly.time ?? [];
   return times.flatMap((time, index) => {
     if (time.slice(0, 10) !== dateStr) return [];
     const probabilities = routeWeather.map((weather) => weather.hourly.precipitation_probability[index]).filter((value): value is number => typeof value === 'number');
     const precipitation = routeWeather.map((weather) => weather.hourly.precipitation?.[index] ?? 0);
+    const showers = routeWeather.map((weather) => weather.hourly.showers?.[index] ?? 0);
     const gusts = routeWeather.map((weather) => weather.hourly.wind_gusts_10m?.[index]).filter((value): value is number => typeof value === 'number');
     const codes = routeWeather.map((weather) => weather.hourly.weather_code?.[index]).filter((value): value is number => typeof value === 'number');
     return [{
@@ -241,8 +268,9 @@ export function getRouteHourly(routeWeather: WeatherData[], dateStr: string): Ro
       hour: Number(time.slice(11, 13)),
       probability: probabilities.length === routeWeather.length ? Math.max(...probabilities) : null,
       precipitationMm: Math.max(...precipitation),
+      showersMm: Math.max(...showers),
       gustKmh: gusts.length ? Math.max(...gusts) : null,
-      weatherCode: codes.length ? Math.max(...codes) : null,
+      weatherCode: routeWeatherCode(codes),
     }];
   });
 }
