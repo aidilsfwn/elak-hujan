@@ -4,8 +4,8 @@ const config = {
   homeLocation: { name: 'Kuala Lumpur, Malaysia', lat: 3.139, lon: 101.6869, state: 'W.P. Kuala Lumpur' },
   officeLocation: { name: 'Putrajaya, Malaysia', lat: 2.9264, lon: 101.6964, state: 'W.P. Putrajaya' },
   morningWindow: { start: '08:00', end: '09:00' }, eveningWindow: { start: '17:00', end: '18:00' },
-  officeDaysPerWeek: 3, preferredDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'], rainThreshold: 40,
-  onboardingComplete: true, configVersion: 2,
+  officeDaysPerWeek: 3, unavailableDays: [], rainThreshold: 40,
+  onboardingComplete: true, configVersion: 3,
 };
 
 function dateRange(): string[] {
@@ -58,8 +58,8 @@ test('weekly and leave flows show route-aware, actionable advice', async ({ page
   await expect(page.getByText('Keyakinan rendah', { exact: false }).first()).toBeVisible();
 
   await page.getByRole('link', { name: 'Sekarang', exact: true }).click();
-  await expect(page.getByText('16:00', { exact: true }).first()).toBeVisible();
-  await expect(page.locator('.hour-ribbon-values .is-selected')).toContainText('16:00');
+  await expect(page.getByText('18:00', { exact: true }).first()).toBeVisible();
+  await expect(page.locator('.hour-ribbon-values .is-selected')).toContainText('18:00');
   await expect(page.getByText('seluruh laluan', { exact: false })).toBeVisible();
 });
 

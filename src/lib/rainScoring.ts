@@ -31,7 +31,7 @@ export interface ScoredDay {
   peakGustKmh: number | null;
   hasThunderstorm: boolean;
   confidence: 'tinggi' | 'sederhana' | 'rendah';
-  isPreferred: boolean;
+  isUnavailable: boolean;
   isRecommended: boolean;
 }
 
@@ -201,17 +201,17 @@ export function scoreDays(routeWeather: WeatherData[], config: UserConfig, now =
       peakGustKmh: morning.peakGustKmh === null && evening.peakGustKmh === null ? null : Math.max(morning.peakGustKmh ?? 0, evening.peakGustKmh ?? 0),
       hasThunderstorm: morning.hasThunderstorm || evening.hasThunderstorm,
       confidence,
-      isPreferred: config.preferredDays.includes(dayName),
+      isUnavailable: config.unavailableDays.includes(dayName),
       isRecommended: false,
     };
   });
 }
 
-export function getRecommendedDays(scoredDays: ScoredDay[], count: number, preferredDays: string[], completedDates: string[] = []): ScoredDay[] {
+export function getRecommendedDays(scoredDays: ScoredDay[], count: number, unavailableDays: string[], completedDates: string[] = []): ScoredDay[] {
   const byScore = (a: ScoredDay, b: ScoredDay) => a.combinedScore! - b.combinedScore!;
   const completed = new Set(completedDates);
   const weeks = new Map<string, ScoredDay[]>();
-  scoredDays.filter((day) => day.combinedScore !== null && !completed.has(day.dateStr)).forEach((day) => {
+  scoredDays.filter((day) => day.combinedScore !== null && !unavailableDays.includes(day.dayName) && !completed.has(day.dateStr)).forEach((day) => {
     const key = getWeekKey(day.date);
     weeks.set(key, [...(weeks.get(key) ?? []), day]);
   });
@@ -223,12 +223,9 @@ export function getRecommendedDays(scoredDays: ScoredDay[], count: number, prefe
       return !Number.isNaN(date.getTime()) && getWeekKey(date) === weekKey;
     }).length;
     const remainingCount = Math.max(0, count - completedInWeek);
-    const preferred = available.filter((day) => preferredDays.includes(day.dayName)).sort(byScore);
-    const nonPreferred = available.filter((day) => !preferredDays.includes(day.dayName)).sort(byScore);
-    preferred.slice(0, remainingCount).forEach((day) => recommended.add(day.dateStr));
-    nonPreferred.slice(0, Math.max(0, remainingCount - preferred.length)).forEach((day) => recommended.add(day.dateStr));
+    available.sort(byScore).slice(0, remainingCount).forEach((day) => recommended.add(day.dateStr));
   });
-  return scoredDays.map((day) => ({ ...day, isRecommended: recommended.has(day.dateStr) }));
+  return scoredDays.map((day) => ({ ...day, isUnavailable: unavailableDays.includes(day.dayName), isRecommended: recommended.has(day.dateStr) }));
 }
 
 export function getRouteHourly(routeWeather: WeatherData[], dateStr: string): RouteHour[] {

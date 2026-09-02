@@ -19,7 +19,7 @@ export function useDayRecommendation(): {
   const days = useMemo(() => {
     if (routeWeather.length === 0 || !config) return [];
     const scored = scoreDays(routeWeather, config);
-    return getRecommendedDays(scored, config.officeDaysPerWeek, config.preferredDays, completedAttendanceDates(attendance));
+    return getRecommendedDays(scored, config.officeDaysPerWeek, config.unavailableDays, completedAttendanceDates(attendance));
   }, [routeWeather, config, attendance]);
 
   return { days, isLoading, isError, isFetching, refetch };

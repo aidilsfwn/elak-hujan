@@ -43,7 +43,7 @@ export const copy = {
       title: "Hari Pejabat",
       subtitle: "Berapa hari anda pergi ke pejabat setiap minggu?",
       daysPerWeekLabel: "Bilangan hari seminggu",
-      preferredDaysLabel: "Hari yang diutamakan",
+      unavailableDaysLabel: "Hari saya tidak boleh ke pejabat",
       days: {
         monday: "Isn",
         tuesday: "Sel",

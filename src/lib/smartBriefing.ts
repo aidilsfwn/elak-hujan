@@ -32,12 +32,15 @@ function confidenceNote(day: ScoredDay): string {
 }
 
 export function buildSmartBriefing({ days, target, completed, isCurrentWeek }: SmartBriefingInput): SmartBriefingCopy {
-  const available = days.filter((day) => day.combinedScore !== null).sort((a, b) => a.combinedScore! - b.combinedScore!);
+  const available = days.filter((day) => day.combinedScore !== null && !day.isUnavailable).sort((a, b) => a.combinedScore! - b.combinedScore!);
   const recommended = available.filter((day) => day.isRecommended);
   const best = recommended[0] ?? available[0];
   const remaining = Math.max(0, target - completed);
 
-  if (!best) return {
+  if (!best) return days.some((day) => day.combinedScore !== null) ? {
+    headline: 'Tiada hari tersedia untuk dicadangkan.',
+    summary: 'Semua hari yang tinggal telah ditandakan sebagai hari anda tidak boleh ke pejabat.',
+  } : {
     headline: 'Belum cukup data untuk diringkaskan.',
     summary: 'Ramalan lengkap bagi laluan pagi dan petang belum tersedia untuk minggu ini.',
   };
@@ -49,9 +52,11 @@ export function buildSmartBriefing({ days, target, completed, isCurrentWeek }: S
     opening = `Tiada hari tambahan diperlukan. Jika anda perlu hadir lagi, ${dayNames[best.dayName]} mempunyai risiko terendah antara hari yang tinggal.`;
   } else if (isCurrentWeek) {
     headline = `${remaining} hari lagi untuk melengkapkan sasaran.`;
-    opening = recommended.length > 0
-      ? `${dayNames[best.dayName]} ialah pilihan utama daripada ${recommended.length} hari yang disyorkan.`
-      : 'Tiada hari tambahan yang dapat disyorkan dengan data lengkap buat masa ini.';
+    opening = recommended.length === 0
+      ? 'Tiada hari tambahan yang dapat disyorkan dengan data lengkap buat masa ini.'
+      : recommended.length < remaining
+        ? `Hanya ${recommended.length} hari tersedia; ${dayNames[best.dayName]} ialah pilihan utama.`
+        : `${dayNames[best.dayName]} ialah pilihan utama daripada ${recommended.length} hari yang disyorkan.`;
   } else {
     headline = `${recommended.length} hari disyorkan untuk minggu depan.`;
     opening = recommended.length > 0
