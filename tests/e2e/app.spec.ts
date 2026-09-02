@@ -58,9 +58,21 @@ test('weekly and leave flows show route-aware, actionable advice', async ({ page
   await expect(page.getByText('Keyakinan rendah', { exact: false }).first()).toBeVisible();
 
   await page.getByRole('link', { name: 'Sekarang', exact: true }).click();
-  await expect(page.getByText('18:00', { exact: true }).first()).toBeVisible();
-  await expect(page.locator('.hour-ribbon-values .is-selected')).toContainText('18:00');
+  await expect(page.getByText('17:00', { exact: true }).first()).toBeVisible();
+  await expect(page.locator('.hour-ribbon-values .is-selected')).toContainText('17:00');
   await expect(page.getByText('seluruh laluan', { exact: false })).toBeVisible();
+});
+
+test('leave advisor keeps the current partial hour visible', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-09-01T09:30:00.000Z'));
+  await mockApis(page);
+  await page.addInitScript((stored) => localStorage.setItem('elakhujan_config', JSON.stringify(stored)), config);
+  await page.goto('/leave');
+
+  await expect(page.getByRole('heading', { name: 'Sekarang ialah pilihan paling rendah risiko.' })).toBeVisible();
+  const selected = page.locator('.hour-ribbon-values .is-selected');
+  await expect(selected.getByText('Kini', { exact: true })).toBeVisible();
+  await expect(selected.getByText('60%', { exact: true })).toBeVisible();
 });
 
 test('onboarding requires explicit verified locations', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, RefreshCw } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { OfficialForecast } from '@/components/OfficialForecast';
@@ -21,20 +21,36 @@ export function LeaveAdvisor() {
   const { warnings } = useWarnings();
   const official = useNowcast(config?.officeLocation);
   const [guidanceOpen, setGuidanceOpen] = useState(false);
+  const [now, setNow] = useState(malaysiaNow);
+  useEffect(() => {
+    let interval: number | undefined;
+    const timeout = window.setTimeout(() => {
+      setNow(malaysiaNow());
+      interval = window.setInterval(() => setNow(malaysiaNow()), 60_000);
+    }, 60_000 - Date.now() % 60_000);
+    return () => {
+      window.clearTimeout(timeout);
+      if (interval !== undefined) window.clearInterval(interval);
+    };
+  }, []);
   if (!config) return null;
 
-  const now = malaysiaNow();
   const recommendation = weather.routeWeather.length ? getRecommendedLeaveTime(weather.routeWeather, now, config.eveningWindow, config.rainThreshold, now) : null;
-  const upcoming = weather.routeWeather.length ? getRollingSlots(weather.routeWeather, now, now.getHours(), 4) : [];
+  const upcoming = weather.routeWeather.length ? getRollingSlots(weather.routeWeather, now, 4) : [];
   const slots = recommendation?.slots ?? upcoming;
   const selectedSlot = recommendation?.slots.find((slot) => slot.time === recommendation.recommendedTime);
+  const recommendedLabel = selectedSlot?.isNow ? 'Sekarang' : recommendation?.recommendedTime;
   const risk = getRiskLevel(selectedSlot?.riskScore ?? 100, config.rainThreshold, warnings.length > 0);
   const index = weather.officeWeather?.hourly.time.findIndex((time) => time.startsWith(toLocalDateStr(now)) && Number(time.slice(11, 13)) === now.getHours()) ?? -1;
   const temperatureValue = index >= 0 ? weather.officeWeather?.hourly.temperature_2m?.[index] : undefined;
   const temperature = typeof temperatureValue === 'number' ? Math.round(temperatureValue) : null;
   const period = now.getHours() < 12 ? 'Pagi' : now.getHours() < 19 ? 'Petang' : 'Malam';
   const officialCondition = official.forecast?.periods.find((item) => item.label === period)?.condition;
-  const verdict = recommendation ? recommendation.hasCleanWindow ? 'Waktu terawal dengan risiko rendah.' : 'Risiko kekal tinggi.' : weather.isLoading ? 'Sedang membaca ramalan.' : 'Tetingkap balik sudah tamat.';
+  const verdict = recommendation
+    ? selectedSlot?.isNow
+      ? recommendation.hasCleanWindow ? 'Boleh balik sekarang.' : 'Sekarang ialah pilihan paling rendah risiko.'
+      : recommendation.hasCleanWindow ? 'Waktu terawal dengan risiko rendah.' : 'Risiko kekal tinggi.'
+    : weather.isLoading ? 'Sedang membaca ramalan.' : 'Tetingkap balik sudah tamat.';
   const tips = (recommendation?.probability ?? 0) >= 70 ? ['Sarungkan baju hujan sebelum bergerak.', 'Kurangkan kelajuan dan elak kawasan rendah.'] : (recommendation?.probability ?? 0) >= config.rainThreshold ? ['Simpan baju hujan dalam capaian.', 'Beri ruang membrek lebih panjang.'] : ['Laluan dijangka selesa untuk perjalanan.'];
   const updated = weather.dataUpdatedAt ? Math.max(0, Math.floor((now.getTime() - weather.dataUpdatedAt) / 60000)) : null;
 
@@ -48,12 +64,12 @@ export function LeaveAdvisor() {
           <WarningAlert inset />
           <motion.div className="verdict-message" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .2 }}>
             <h1>{verdict}</h1>
-            {recommendation && <motion.div key={`${recommendation.recommendedTime}-${recommendation.probability}`} className="verdict-number" initial={{ opacity: .5, y: 3 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 480, damping: 34 }}><strong>{recommendation.recommendedTime}</strong><span>{Math.round(recommendation.probability)}% hujan · {riskLabel[risk]}</span></motion.div>}
+            {recommendation && <motion.div key={`${recommendation.recommendedTime}-${recommendation.probability}`} className={`verdict-number ${selectedSlot?.isNow ? 'is-now' : ''}`} initial={{ opacity: .5, y: 3 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 480, damping: 34 }}><strong>{recommendedLabel}</strong><span>{Math.round(recommendation.probability)}% hujan · {riskLabel[risk]}</span></motion.div>}
             <p>{officialCondition ? `MET bandar terdekat: ${period} — ${officialCondition}.` : `Ramalan Open-Meteo untuk ${period.toLowerCase()}.`}{temperature !== null ? ` ${temperature}°C di pejabat sekarang.` : ''}</p>
           </motion.div>
         </div>
 
-        {!weather.isLoading && !weather.isError && slots.length > 0 && <div className="hour-ribbon"><div className="hour-ribbon-label"><span>{recommendation ? 'Pilihan masa yang masih boleh diambil' : 'Empat jam seterusnya'}</span><small>{recommendation ? 'Titik menandakan masa yang disyorkan' : 'Tiada pilihan dalam tetingkap balik'}</small></div><div className="hour-ribbon-values">{slots.map((slot) => { const slotRisk = getRiskLevel(slot.riskScore, config.rainThreshold); const selected = slot.time === recommendation?.recommendedTime; return <div className={`risk-${slotRisk} ${selected ? 'is-selected' : ''}`} key={slot.hour}><span>{slot.time}</span><i style={{ height: `${Math.max(5, slot.riskScore * .42)}px` }} /><strong>{Math.round(slot.probability)}%</strong></div>; })}</div></div>}
+        {!weather.isLoading && !weather.isError && slots.length > 0 && <div className="hour-ribbon"><div className="hour-ribbon-label"><span>{recommendation ? 'Sekarang dan pilihan yang masih boleh diambil' : 'Sekarang dan tiga jam seterusnya'}</span><small>{recommendation ? 'Titik menandakan masa yang disyorkan' : 'Tiada pilihan dalam tetingkap balik'}</small></div><div className="hour-ribbon-values">{slots.map((slot) => { const slotRisk = getRiskLevel(slot.riskScore, config.rainThreshold); const selected = slot.time === recommendation?.recommendedTime; return <div className={`risk-${slotRisk} ${selected ? 'is-selected' : ''}`} key={slot.hour}><span>{slot.isNow ? 'Kini' : slot.time}</span><i style={{ height: `${Math.max(5, slot.riskScore * .42)}px` }} /><strong>{Math.round(slot.probability)}%</strong></div>; })}</div></div>}
       </section>
 
       {weather.isLoading && <div className="verdict-status">Mengira masa terbaik…</div>}

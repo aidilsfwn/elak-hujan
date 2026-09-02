@@ -80,6 +80,7 @@ svg { width: 1em; height: 1em; }
 .verdict-message h1 { max-width:620px; margin:0; font-size:clamp(42px,12vw,60px); line-height:.96; letter-spacing:-.065em; }
 .verdict-number { margin-top:32px; }
 .verdict-number strong { display:block; font-family:"SFMono-Regular","Roboto Mono",ui-monospace,monospace; font-size:clamp(62px,20vw,96px); font-weight:560; line-height:.9; letter-spacing:-.09em; font-variant-numeric:tabular-nums; }
+.verdict-number.is-now strong { font-size:clamp(42px,14vw,72px); letter-spacing:-.075em; }
 .verdict-number span { display:block; margin-top:14px; color:var(--risk); font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
 .verdict-message > p { max-width:410px; margin:21px 0 0; font-size:12px; line-height:1.6; letter-spacing:.01em; text-transform:none; }
 .hour-ribbon { position:absolute; z-index:2; left:16px; right:16px; bottom:16px; min-height:154px; padding:15px 16px 13px; border:1px solid rgba(255,255,255,.4); border-radius:22px; background:rgba(255,255,255,.84); color:#1c2020; box-shadow:0 12px 36px rgba(35,40,40,.08); }

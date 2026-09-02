@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getRecommendedLeaveTime } from '@/lib/leaveAdvisor';
+import { getRecommendedLeaveTime, getRollingSlots } from '@/lib/leaveAdvisor';
 import { weather } from './weatherFactory';
 
 describe('leave advisor', () => {
@@ -22,10 +22,25 @@ describe('leave advisor', () => {
     expect(result?.probability).toBe(35);
   });
 
-  it('never recommends a slot that has already passed', () => {
+  it('keeps the remainder of the current hour actionable without showing its elapsed start', () => {
     const now = new Date(2026, 8, 1, 17, 30);
     const result = getRecommendedLeaveTime(route, now, { start: '17:00', end: '19:00' }, 40, now);
-    expect(result?.slots.map((slot) => slot.time)).toEqual(['18:00']);
+    expect(result?.slots.map((slot) => slot.time)).toEqual(['17:30', '18:00']);
+    expect(result?.slots[0].isNow).toBe(true);
+    expect(result?.recommendedTime).toBe('17:30');
+  });
+
+  it('keeps now actionable until the final minute of the configured window', () => {
+    const now = new Date(2026, 8, 1, 17, 59);
+    const result = getRecommendedLeaveTime(route, now, { start: '17:00', end: '18:00' }, 40, now);
+    expect(result?.slots.map((slot) => slot.time)).toEqual(['17:59']);
+  });
+
+  it('labels the current partial hour in the rolling forecast', () => {
+    const now = new Date(2026, 8, 1, 17, 30);
+    const slots = getRollingSlots(route, now);
+    expect(slots.map((slot) => slot.time)).toEqual(['17:30', '18:00', '19:00']);
+    expect(slots[0].isNow).toBe(true);
   });
 
   it('returns null when no actionable forecast slot remains', () => {
